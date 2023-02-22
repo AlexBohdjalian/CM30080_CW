@@ -27,9 +27,9 @@ def angle_between_lines(line1, line2):
     vec1 = get_vector_from_intersection(line1, [intx, inty])
     vec2 = get_vector_from_intersection(line2, [intx, inty])
 
-    # TODO: get angle between vectors. wolfram alpha works
+    angle = np.arccos(np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2)))
 
-    return angle
+    return np.rad2deg(angle)
 
 def line_intersection(line1, line2):
     # Calculate intersection point of two lines
@@ -74,25 +74,8 @@ for file_name, actual_angle in results:
         line1 = np.mean(line_label_dict[0], axis=0)
         line2 = np.mean(line_label_dict[1], axis=0)
 
-        # print(line1, line2)
-
         angle = angle_between_lines(line1, line2)
         angle = round(angle)
-        
-        # break
-
-        # delta_x = line2[2] - line2[0]
-        # delta_y = line2[3] - line2[1]
-        # angle = np.arctan2(delta_y, delta_x) - np.arctan2(line1[3] - line1[1], line1[2] - line1[0])
-        # angle = round(abs(angle * 180 / np.pi))
-
-        # Calculate line angles
-        angle1 = np.arctan2(line1[3] - line1[1], line1[2] - line1[0]) * 180 / np.pi
-        angle2 = np.arctan2(line2[3] - line2[1], line2[2] - line2[0]) * 180 / np.pi
-
-        # Calculate angle between the lines
-        angle = round(abs(angle1 - angle2))
-
 
         message = f'The angle in {file_name} is \t{angle} deg \t{GREEN}{actual_angle} deg{NORMAL}'
         if angle == actual_angle:
