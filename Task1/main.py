@@ -55,19 +55,12 @@ for file_name, actual_angle in results:
     lines = cv2.HoughLinesP(edges, 1, np.pi/180, 50, minLineLength=10, maxLineGap=250)
 
     try:
-        for line in lines:
-            cv2.line(img, (line[0][0], line[0][1]), (line[0][2], line[0][3]), (0, 255, 0))
-        # cv2.imshow('img', img)
-        # cv2.waitKey(2000)
-
         # K-means clustering
         lines = lines.reshape(-1, 4)
         kmeans = KMeans(n_clusters=2, random_state=0, n_init='auto').fit(lines)
         labels = kmeans.labels_
         line_label_dict = {}
 
-        line1 = None
-        line2 = None
         for line, label in zip(lines, labels):
             line_label_dict[label] = line_label_dict.get(label, []) + [np.round(line)]
 
