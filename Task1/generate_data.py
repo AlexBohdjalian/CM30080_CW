@@ -2,56 +2,61 @@ import cv2
 import numpy as np
 
 
-def generate_data(n_images=30, n_folder='assets/test'):
-    # Image dimensions
+def generate_test_data(n_images, folder):
+    # Define image dimensions
     height = 480
     width = 854
 
-    # Clear file before writing to it
-    open(f'{n_folder}/list.txt', 'w').close()
+    file_names = []
+    actual_angles = []
 
-    for i in range(n_images):
-        # Create a black image
-        img = np.zeros((height, width, 3), dtype=np.uint8)
+    for i in range(10):
+        # Create a blank gray image
+        image = np.zeros((height, width, 3), np.uint8)
+        image[:, :] = (51, 51, 51)
 
-        # Generate two random angles in degrees
-        angle1 = np.random.randint(0, 180)
-        angle2 = np.random.randint(0, 180)
+        # Define line properties
+        line_length = np.random.randint(30, 100)
+        line_thickness = 2
+        line_color = (255, 255, 255)
 
-        length1 = np.random.randint(50, 150)
-        length2 = np.random.randint(50, 150)
+        # Generate a random start point that is within the image bounds
+        start_point = (
+            np.random.randint(line_length, width - line_length),
+            np.random.randint(line_length, height - line_length)
+        )
 
-        # Convert the angles to radians
-        theta1 = np.deg2rad(angle1)
-        theta2 = np.deg2rad(angle2)
+        # Generate two random directions for the lines
+        angles = np.random.rand(2) * 2 * np.pi
 
-        # Generate the coordinates for the first line
-        x1 = np.linspace(0, -length1, 1200)
-        y1 = np.tan(theta1) * x1
+        # Calculate the end points of the lines using the start point and random directions
+        end_points = []
+        for j in range(2):
+            # Calculate the maximum distance the line can travel in the given direction
+            max_distance = min(line_length, min(start_point[0], width - start_point[0],
+                                                start_point[1], height - start_point[1]))
+            # Calculate the end point of the line using the maximum distance
+            end_point = (int(start_point[0] + max_distance * np.cos(angles[j])),
+                        int(start_point[1] + max_distance * np.sin(angles[j])))
+            end_points.append(end_point)
 
-        # Generate the coordinates for the second line
-        x2 = np.linspace(0, length2, 1200)
-        y2 = np.tan(theta2) * x2
+        # Draw the lines on the image
+        for end_point in end_points:
+            cv2.line(image, start_point, end_point, line_color, line_thickness)
 
-        # Draw the lines
-        cv2.line(img, (int(x1[0] + width / 2), int(y1[0] + height / 2)),
-                 (int(x1[-1] + width / 2), int(y1[-1] + height / 2)), (255, 255, 255), 2)
-        cv2.line(img, (int(x2[0] + width / 2), int(y2[0] + height / 2)),
-                 (int(x2[-1] + int(width / 2)), int(y2[-1] + +height / 2)), (255, 255, 255), 2)
+        # Calculate the actual angle between the two lines
+        vector1 = np.array(end_points[0]) - np.array(start_point)
+        vector2 = np.array(end_points[1]) - np.array(start_point)
+        cos_angle = np.dot(vector1, vector2) / (np.linalg.norm(vector1) * np.linalg.norm(vector2))
+        angle = np.arccos(cos_angle)
+        angle_degrees = round(np.rad2deg(angle))
 
-        # Calculate the angle between the lines
-        dir1 = np.array([x1[-1] - x1[0], y1[-1] - y1[0]])
-        dir2 = np.array([x2[-1] - x2[0], y2[-1] - y2[0]])
-        cos_angle = np.dot(dir1, dir2) / (np.linalg.norm(dir1) * np.linalg.norm(dir2))
-        angle_deg = round(np.rad2deg(np.arccos(cos_angle)))
+        # Save the image
+        img_path = folder + 'image' + str(i + 1) + '.png'
+        # cv2.imshow('image', image)
+        # cv2.waitKey(1000)
+        cv2.imwrite(img_path, image)
+        file_names.append(img_path)
+        actual_angles.append(angle_degrees)
 
-        # Write the angle to a text file
-        with open(f'{n_folder}/list.txt', 'a') as f:
-            f.write(f'image{i}.png,{angle_deg}\n')
-
-        cv2.imwrite(f'{n_folder}/image{i}.png', img)
-
-
-if __name__ == '__main__':
-    generate_data()
-
+    return file_names, actual_angles
