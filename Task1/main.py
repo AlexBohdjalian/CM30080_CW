@@ -34,18 +34,25 @@ def line_intersection(line1, line2):
     # Calculate intersection point of two lines
     x1, y1, x2, y2 = line1
     x3, y3, x4, y4 = line2
-    px = ((x1*y2 - y1*x2)*(x3 - x4) - (x1 - x2)*(x3*y4 - y3*x4)) / ((x1 - x2)*(y3 - y4) - (y1 - y2)*(x3 - x4))
-    py = ((x1*y2 - y1*x2)*(y3 - y4) - (y1 - y2)*(x3*y4 - y3*x4)) / ((x1 - x2)*(y3 - y4) - (y1 - y2)*(x3 - x4))
+
+    det = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4)
+
+    # Check if the two lines are parallel
+    if det == 0:
+        raise ValueError("Lines are parallel, angle is undefined.")
+
+    px = ((x1 * y2 - y1 * x2) * (x3 - x4) - (x1 - x2) * (x3 * y4 - y3 * x4)) / det
+    py = ((x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2) * (x3 * y4 - y3 * x4)) / det
+
     return px, py
 
-
-
-with open('Task1/assets/list.txt', 'r') as f:
+with open('assets/test/list.txt', 'r') as f:
     results = f.readlines()
 results = [(item.split(',')[0], int(item.split(',')[1].strip())) for item in results]
 
+correct = 0
 for file_name, actual_angle in results:
-    img_path = 'Task1/assets/' + str(file_name)
+    img_path = 'assets/test/' + str(file_name)
     img = cv2.imread(img_path, cv2.COLOR_RGB2GRAY)
 
     img = cv2.GaussianBlur(img, (5, 5), 0)
@@ -72,7 +79,10 @@ for file_name, actual_angle in results:
         message = f'The angle in {file_name} is \t{angle} deg \t{GREEN}{actual_angle} deg{NORMAL}'
         if angle == actual_angle:
             print_correct(message)
+            correct += 1
         else:
             print_wrong(message)
     except:
         print('Error occurred')
+
+print(f'\nAccuracy: {correct}/{len(results)}')
