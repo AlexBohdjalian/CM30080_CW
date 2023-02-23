@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 from sklearn.cluster import KMeans
+from collections import defaultdict
 
 RED = '\u001b[31m'
 GREEN = '\u001b[32m'
@@ -34,45 +35,62 @@ def line_intersection(line1, line2):
     # Calculate intersection point of two lines
     x1, y1, x2, y2 = line1
     x3, y3, x4, y4 = line2
-    px = ((x1*y2 - y1*x2)*(x3 - x4) - (x1 - x2)*(x3*y4 - y3*x4)) / ((x1 - x2)*(y3 - y4) - (y1 - y2)*(x3 - x4))
-    py = ((x1*y2 - y1*x2)*(y3 - y4) - (y1 - y2)*(x3*y4 - y3*x4)) / ((x1 - x2)*(y3 - y4) - (y1 - y2)*(x3 - x4))
+
+    det = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4)
+
+    # Check if the two lines are parallel
+    if det == 0:
+        raise ValueError("Lines are parallel, angle is undefined.")
+
+    px = ((x1 * y2 - y1 * x2) * (x3 - x4) - (x1 - x2) * (x3 * y4 - y3 * x4)) / det
+    py = ((x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2) * (x3 * y4 - y3 * x4)) / det
     return px, py
 
 
+def determine_angles(results, show_output=True):
+    correct = []
+    wrong = []
+    for img_path, actual_angle in results:
+        # Read image to grayscale
+        img = cv2.imread(img_path, cv2.COLOR_RGB2GRAY)
 
-with open('Task1/assets/list.txt', 'r') as f:
-    results = f.readlines()
-results = [(item.split(',')[0], int(item.split(',')[1].strip())) for item in results]
+        # Apply gaussian blur to improve canny edge detection
+        img = cv2.GaussianBlur(img, (5, 5), 0)
 
-for file_name, actual_angle in results:
-    img_path = 'Task1/assets/' + str(file_name)
-    img = cv2.imread(img_path, cv2.COLOR_RGB2GRAY)
+        # Detect edges, then edges from lines
+        edges = cv2.Canny(img, 50, 150, apertureSize=3)
+        lines = cv2.HoughLinesP(edges, 1, np.pi/180, 50, minLineLength=10, maxLineGap=250)
 
-    img = cv2.GaussianBlur(img, (5, 5), 0)
+        try:
+            # K-means clustering
+            lines = lines.reshape(-1, 4)
+            kmeans = KMeans(n_clusters=2, random_state=0, n_init='auto').fit(lines)
+            labels = kmeans.labels_
+        except:
+            print('Error while clustering')
 
-    edges = cv2.Canny(img, 50, 150, apertureSize=3)
-    lines = cv2.HoughLinesP(edges, 1, np.pi/180, 50, minLineLength=10, maxLineGap=250)
+        try:
+            line_label_dict = defaultdict(list)
+            line_label_dict.update((label, [np.round(line)]) for line, label in zip(lines, labels))
 
-    try:
-        # K-means clustering
-        lines = lines.reshape(-1, 4)
-        kmeans = KMeans(n_clusters=2, random_state=0, n_init='auto').fit(lines)
-        labels = kmeans.labels_
-        line_label_dict = {}
+            line1, line2 = [np.mean(line_label_dict[i], axis=0) for i in range(2)]
+        except:
+            print('Error while getting lines')
 
-        for line, label in zip(lines, labels):
-            line_label_dict[label] = line_label_dict.get(label, []) + [np.round(line)]
+        try:
+            angle = angle_between_lines(line1, line2)
+            angle = round(angle)
 
-        line1 = np.mean(line_label_dict[0], axis=0)
-        line2 = np.mean(line_label_dict[1], axis=0)
+            message = 'The angle in {} is\t {:>4} deg   {:>4} deg'.format(img_path, angle, actual_angle)
+            if angle == actual_angle:
+                if show_output:
+                    print_correct(message)
+                correct.append(img_path)
+            else:
+                if show_output:
+                    print_wrong(message)
+                wrong.append(img_path)
+        except:
+            print('Error while calculating angle')
 
-        angle = angle_between_lines(line1, line2)
-        angle = round(angle)
-
-        message = f'The angle in {file_name} is \t{angle} deg \t{GREEN}{actual_angle} deg{NORMAL}'
-        if angle == actual_angle:
-            print_correct(message)
-        else:
-            print_wrong(message)
-    except:
-        print('Error occurred')
+    return correct, wrong
