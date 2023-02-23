@@ -56,7 +56,11 @@ if test_random_data:
         print(f'Accuracy: {round(c_count * 100 / len(file_names), 1)}%')
         print(NORMAL)
     except:
-        print('Unknown error occurred in ' + __name__ + ' while testing random data')
+        print('Unknown error occurred in ' + __name__ + ' while testing random data. Please try again')
+
+    # for wrong_pred in wrong:
+    #     if abs(wrong_pred[1] - wrong_pred[2]) <= 5:
+    #         print(wrong_pred)
 
     # cleanup
     shutil.rmtree(test_dir)

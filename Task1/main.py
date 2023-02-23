@@ -14,19 +14,19 @@ def print_correct(text):
 def print_wrong(text):
     print(RED + text + NORMAL)
 
-def get_vector_from_intersection(line, intersection):
+def get_vector_from_line(line, intersection):
     dist = np.linalg.norm(line[0:2] - intersection)
 
     if np.linalg.norm(line[2:4] - intersection) > dist:
-        return np.array([line[2] - intersection[0], line[3] - intersection[1]])
+        return np.array([line[2] - line[0], line[3] - line[1]])
     
-    return np.array([line[0] - intersection[0], line[1] - intersection[1]])
+    return np.array([line[0] - line[2], line[1] - line[3]])
 
 def angle_between_lines(line1, line2):
     inter_point = line_intersection(line1, line2)
 
-    vec1 = get_vector_from_intersection(line1, inter_point)
-    vec2 = get_vector_from_intersection(line2, inter_point)
+    vec1 = get_vector_from_line(line1, inter_point)
+    vec2 = get_vector_from_line(line2, inter_point)
 
     angle = np.arccos(np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2)))
 
@@ -97,7 +97,7 @@ def determine_angles(results, show_output=True):
             else:
                 if show_output:
                     print_wrong(message)
-                wrong.append(img_path)
+                wrong.append((img_path, actual_angle, angle))
         except:
             if show_output:
                 print('Error while calculating angle')
