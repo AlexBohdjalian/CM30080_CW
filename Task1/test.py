@@ -20,7 +20,7 @@ if test_random_data:
     test_dir = 'Task1/tmp_assets/'
     if not os.path.exists(test_dir):
         os.makedirs(test_dir)
-    file_names, actual_angles = generate_test_data(30, test_dir)
+    file_names, actual_angles = generate_test_data(1000, test_dir)
 
     print('Evaluating test data...')
     correct, wrong = determine_angles(zip(file_names, actual_angles), show_output=False)

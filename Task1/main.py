@@ -68,7 +68,8 @@ def determine_angles(results, show_output=True):
             kmeans = KMeans(n_clusters=2, random_state=0, n_init='auto').fit(lines)
             labels = kmeans.labels_
         except:
-            print('Error while clustering')
+            if show_output:
+                print('Error while clustering')
 
         try:
             line_label_dict = defaultdict(list)
@@ -76,7 +77,8 @@ def determine_angles(results, show_output=True):
 
             line1, line2 = [np.mean(line_label_dict[i], axis=0) for i in range(2)]
         except:
-            print('Error while getting lines')
+            if show_output:
+                print('Error while getting lines')
 
         try:
             angle = angle_between_lines(line1, line2)
@@ -92,6 +94,7 @@ def determine_angles(results, show_output=True):
                     print_wrong(message)
                 wrong.append(img_path)
         except:
-            print('Error while calculating angle')
+            if show_output:
+                print('Error while calculating angle')
 
     return correct, wrong
