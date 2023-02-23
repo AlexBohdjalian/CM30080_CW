@@ -87,10 +87,15 @@ if test_random_data:
     BLUE = '\u001b[34m'
     NORMAL = '\u001b[0m'
 
+    c_count = len(correct)
+    w_count = len(wrong)
+    e_count = len(file_names) - len(correct) - len(wrong)
+
     print(BLUE)
-    print(f'Correct: {len(correct)}')
-    print(f'Wrong: {len(wrong)}')
-    print(f'Errors: {len(file_names) - len(correct) - len(wrong)}')
+    print(f'Correct: {c_count}')
+    print(f'Wrong: {w_count}')
+    print(f'Errors: {e_count}')
+    print(f'Accuracy: {round(c_count * 100 / len(file_names), 1)}%')
     print(NORMAL)
 
     # cleanup
