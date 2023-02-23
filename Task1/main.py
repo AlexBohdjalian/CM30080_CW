@@ -21,11 +21,10 @@ def get_vector_from_intersection(line, intersection):
     return np.array([line[0] - intersection[0], line[1] - intersection[1]])
 
 def angle_between_lines(line1, line2):
-    # get intersection point
-    intx, inty = line_intersection(line1, line2)
+    inter_point = line_intersection(line1, line2)
 
-    vec1 = get_vector_from_intersection(line1, [intx, inty])
-    vec2 = get_vector_from_intersection(line2, [intx, inty])
+    vec1 = get_vector_from_intersection(line1, inter_point)
+    vec2 = get_vector_from_intersection(line2, inter_point)
 
     angle = np.arccos(np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2)))
 
@@ -76,4 +75,4 @@ for file_name, actual_angle in results:
         else:
             print_wrong(message)
     except:
-        print('Error occured')
+        print('Error occurred')
