@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 from sklearn.cluster import KMeans
 from collections import defaultdict
+import os
 
 RED = '\u001b[31m'
 GREEN = '\u001b[32m'
@@ -53,6 +54,8 @@ def determine_angles(results, show_output=True):
     wrong = []
     for img_path, actual_angle in results:
         # Read image to grayscale
+        if not os.path.exists(img_path):
+            continue
         img = cv2.imread(img_path, cv2.COLOR_RGB2GRAY)
 
         # Apply gaussian blur to improve canny edge detection
@@ -75,10 +78,12 @@ def determine_angles(results, show_output=True):
             line_label_dict = defaultdict(list)
             line_label_dict.update((label, [np.round(line)]) for line, label in zip(lines, labels))
 
+            if len(line_label_dict) < 2:
+                raise ValueError('insufficient lines detected')
             line1, line2 = [np.mean(line_label_dict[i], axis=0) for i in range(2)]
-        except:
+        except Exception as e:
             if show_output:
-                print('Error while getting lines')
+                print('Error while getting lines', e)
 
         try:
             angle = angle_between_lines(line1, line2)

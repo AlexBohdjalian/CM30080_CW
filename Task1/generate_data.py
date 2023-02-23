@@ -11,7 +11,8 @@ def generate_test_data(n_images, folder):
     file_names = []
     actual_angles = []
 
-    for i in range(n_images):
+    i = 0
+    while i < n_images:
         try:
             # Create a blank gray image
             image = np.zeros((height, width, 3), np.uint8)
@@ -50,19 +51,19 @@ def generate_test_data(n_images, folder):
             vector1 = np.array(end_points[0]) - np.array(start_point)
             vector2 = np.array(end_points[1]) - np.array(start_point)
             cos_angle = np.dot(vector1, vector2) / (np.linalg.norm(vector1) * np.linalg.norm(vector2))
-            angle = np.arccos(cos_angle)
-            angle_degrees = round(np.rad2deg(angle))
+            angle_deg = round(np.rad2deg(np.arccos(cos_angle)))
 
             # Save the image
             img_path = folder + 'image' + str(i + 1) + '.png'
             # cv2.imshow('image', image)
             # cv2.waitKey(1000)
             cv2.imwrite(img_path, image)
-            file_names.append(img_path)
-            actual_angles.append(angle_degrees)
-        except:
+
             if os.path.exists(img_path):
-                os.remove(img_path)
-            i -= 1
+                file_names.append(img_path)
+                actual_angles.append(angle_deg)
+                i += 1
+        except:
+            print('Exception occurred while generating test data', i)
 
     return file_names, actual_angles
