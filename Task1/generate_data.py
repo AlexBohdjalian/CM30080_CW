@@ -45,7 +45,7 @@ def generate_test_data(n_images, folder):
 
             # Draw the lines on the image
             for end_point in end_points:
-                cv2.line(image, start_point, end_point, line_color, line_thickness)
+                cv2.line(image, start_point, end_point, line_color, line_thickness, cv2.LINE_AA)
 
             # Calculate the actual angle between the two lines
             vector1 = np.array(end_points[0]) - np.array(start_point)
