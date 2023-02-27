@@ -4,6 +4,8 @@ import os
 
 
 def generate_test_data(n_images, folder):
+    np.random.seed(0)
+
     # Define image dimensions
     height = 480
     width = 854
@@ -19,8 +21,8 @@ def generate_test_data(n_images, folder):
             image[:, :] = (51, 51, 51)
 
             # Define line properties
-            line_length = np.random.randint(30, 100)
-            line_thickness = 2
+            line_length = np.random.randint(60, 150)
+            line_thickness = 1
             line_color = (255, 255, 255)
 
             # Generate a random start point that is within the image bounds
@@ -53,10 +55,14 @@ def generate_test_data(n_images, folder):
             cos_angle = np.dot(vector1, vector2) / (np.linalg.norm(vector1) * np.linalg.norm(vector2))
             angle_deg = round(np.rad2deg(np.arccos(cos_angle)))
 
+            if angle_deg < 20 or angle_deg > 160:
+                continue
+
             # Save the image
             img_path = folder + 'image' + str(i + 1) + '.png'
             # cv2.imshow('image', image)
-            # cv2.waitKey(1000)
+            # cv2.waitKey(0)
+
             cv2.imwrite(img_path, image)
 
             if os.path.exists(img_path):

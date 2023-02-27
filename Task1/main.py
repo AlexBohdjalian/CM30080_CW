@@ -59,11 +59,19 @@ def determine_angles(results, show_output=True):
         img = cv2.imread(img_path, cv2.COLOR_RGB2GRAY)
 
         # Apply gaussian blur to improve canny edge detection
-        img = cv2.GaussianBlur(img, (5, 5), 0)
+        # img = cv2.GaussianBlur(img, (5, 5), 0)
+
+        # _, img = cv2.threshold(img, 100, 255, cv2.THRESH_BINARY)
+        # img = cv2.GaussianBlur(img, (3, 3), 0)
+
+        # cv2.imshow('img', img)
+        # cv2.waitKey(0)
 
         # Detect edges, then edges from lines
         edges = cv2.Canny(img, 50, 150, apertureSize=3)
-        lines = cv2.HoughLinesP(edges, 1, np.pi/180, 50, minLineLength=10, maxLineGap=250)
+        # cv2.imshow('edges', edges)
+        # cv2.waitKey(0)
+        lines = cv2.HoughLinesP(edges, 1, np.pi/180, 29, minLineLength=10, maxLineGap=10)
 
         try:
             # K-means clustering
@@ -95,6 +103,13 @@ def determine_angles(results, show_output=True):
                     print_correct(message)
                 correct.append(img_path)
             else:
+                # if abs(actual_angle - angle) <= 5:
+                #     line1 = [round(thing) for thing in line1]
+                #     line2 = [round(thing) for thing in line2]
+                #     cv2.line(img, (line1[0], line1[1]), (line1[2], line1[3]), (0,255,0), 2)
+                #     cv2.line(img, (line2[0], line2[1]), (line2[2], line2[3]), (0,255,0), 2)
+                #     cv2.imshow('image', img)
+                #     cv2.waitKey(0)
                 if show_output:
                     print_wrong(message)
                 wrong.append((img_path, actual_angle, angle))
