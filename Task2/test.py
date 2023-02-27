@@ -9,11 +9,12 @@ def read_no_rotations_dataset(dir):
     image_files = os.listdir(dir + 'images/')
     image_files = sorted(image_files, key=lambda x: int(x.split("_")[2].split(".")[0]))
 
-    actual_image_features = []
+    all_data = []
     for image_file in image_files:
         csv_file = dir + 'annotations/' + image_file[:-4] + '.txt'
         with open(csv_file, 'r') as fr:
             features = fr.read().splitlines()
+        all_features = []
         for feature in features:
             end_of_class = feature.find(", ")
             end_of_tuple = feature.find("), (") + 1
@@ -21,9 +22,10 @@ def read_no_rotations_dataset(dir):
             feature_coord1 = eval(feature[end_of_class + 2:end_of_tuple])
             feature_coord2 = eval(feature[end_of_tuple + 2:])
 
-            actual_image_features.append([feature_class, feature_coord1, feature_coord2])
+            all_features.append([feature_class, feature_coord1, feature_coord2])
+        all_data.append([image_file, all_features])
 
-    return image_files, actual_image_features
+    return all_data
 
 def read_training_dataset(dir):
     print(f'Reading dataset {dir} ...')
@@ -34,12 +36,12 @@ def read_rotations_dataset(dir):
     image_files = os.listdir(dir + 'images/')
     image_files = sorted(image_files, key=lambda x: int(x.split("_")[2].split(".")[0]))
 
-    actual_image_features = []
-    
+    all_data = []
     for image_file in image_files:
         csv_file = dir + 'annotations/' + image_file[:-4] + '.csv'
         with open(csv_file, 'r') as fr:
             features = fr.read().splitlines()
+        all_features = []
         for feature in features:
             end_of_class = feature.find(", ")
             end_of_tuple = feature.find("), (") + 1
@@ -47,14 +49,15 @@ def read_rotations_dataset(dir):
             feature_coord1 = eval(feature[end_of_class + 2:end_of_tuple])
             feature_coord2 = eval(feature[end_of_tuple + 2:])
 
-            actual_image_features.append([feature_class, feature_coord1, feature_coord2])
+            all_features.append([feature_class, feature_coord1, feature_coord2])
+        all_data.append([image_file, all_features])
 
-    return image_files, actual_image_features
+    return all_data
 
 try:
-    all_no_rotation_images_and_features = zip(*read_no_rotations_dataset(task3_task2Dataset_dir + 'TestWithoutRotations/'))
+    all_no_rotation_images_and_features = read_no_rotations_dataset(task3_task2Dataset_dir + 'TestWithoutRotations/')
     all_training_data = read_training_dataset(task3_task2Dataset_dir + 'Training/')
-    all_rotation_images_and_features = zip(*read_rotations_dataset(task3_task3Dataset_dir))
+    all_rotation_images_and_features = read_rotations_dataset(task3_task3Dataset_dir)
 except Exception as e:
     print('Error while reading datasets:', e)
     print()
