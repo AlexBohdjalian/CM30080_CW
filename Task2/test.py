@@ -1,9 +1,10 @@
 import os
+from main import feature_detection
 
 test_dir = 'Task2/Task2Dataset/TestWithoutRotations/'
 
 def read_test_dir(test_dir):
-    print('Reading dataset...')
+    print(f'Reading dataset {test_dir} ...')
     image_files = os.listdir(test_dir + 'images/')
     image_files = sorted(image_files, key=lambda x: int(x.split("_")[2].split(".")[0]))
 
@@ -24,8 +25,30 @@ def read_test_dir(test_dir):
 
     return image_files, actual_image_features
 
-images, actual_features = read_test_dir(test_dir)
+all_images, all_features = read_test_dir(test_dir)
 
-for image, feature in zip(images, actual_features):
-    print(image, feature)
+print('Processing images...')
+correct = []
+wrong = []
+errors = []
+for image_path, actual_features in zip(all_images, all_features):
+    try:
+        predicted_features = feature_detection(image_path)
 
+        if predicted_features == actual_features:
+            correct.append(image_path)
+        else:
+            wrong.append(image_path)
+    except:
+        print('Uncaught error occurred while testing image:', image_path)
+        errors.append(image_path)
+
+BLUE = '\u001b[34m'
+NORMAL = '\u001b[0m'
+
+print(BLUE)
+print(f'Correct: {len(correct)}')
+print(f'Wrong: {len(wrong)}')
+print(f'Errors: {len(errors)}')
+print(f'Accuracy: {round(len(correct) / len(all_images), 2)}%')
+print(NORMAL)
