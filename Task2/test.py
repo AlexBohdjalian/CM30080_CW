@@ -1,6 +1,10 @@
 import os
 from main import training_process, feature_detection
 
+BLUE = '\u001b[34m'
+RED = '\u001b[31m'
+NORMAL = '\u001b[0m'
+
 task3_task2Dataset_dir = 'Task2/Task2Dataset/'
 task3_task3Dataset_dir = 'Task2/Task3Dataset/'
 
@@ -59,15 +63,16 @@ try:
     all_training_data = read_training_dataset(task3_task2Dataset_dir + 'Training/')
     all_rotation_images_and_features = read_rotations_dataset(task3_task3Dataset_dir)
 except Exception as e:
-    print('Error while reading datasets:', e)
-    print()
+    print(RED, 'Error while reading datasets:', NORMAL, e)
+    print(NORMAL)
     exit()
 
 print('Training...')
 try:
     training_process(all_training_data)
 except Exception as e:
-    print('Unknown error occurred while processing images:', e)
+    print(RED, 'Unknown error occurred while processing images:', NORMAL, e)
+    print(NORMAL)
     exit()
 
 
@@ -86,7 +91,7 @@ try:
             else:
                 wrong.append(image_path)
         except:
-            print('Uncaught error occurred while testing image:', image_path)
+            print(RED, 'Uncaught error occurred while testing image:', image_path, NORMAL)
             errors.append(image_path)
 
     BLUE = '\u001b[34m'
@@ -99,6 +104,5 @@ try:
     print(f'Accuracy: {round(len(correct) / len(list(test_dataset)), 2)}%')
     print(NORMAL)
 except Exception as e:
-    print(NORMAL)
-    print('Unknown error occurred while processing images:', e)
+    print(RED, 'Unknown error occurred while processing images:', NORMAL, e)
     exit()
