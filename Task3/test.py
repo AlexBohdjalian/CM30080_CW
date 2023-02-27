@@ -13,7 +13,6 @@ def read_test_dir(test_dir):
         with open(csv_file, 'r') as fr:
             features = fr.read().splitlines()
         for feature in features:
-            # feature = feature.split(", ")
             end_of_class = feature.find(", ")
             end_of_tuple = feature.find("), (") + 1
             feature_class = feature[:end_of_class]
