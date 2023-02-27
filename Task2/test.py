@@ -3,6 +3,7 @@ import os
 test_dir = 'Task2/Task2Dataset/TestWithoutRotations/'
 
 def read_test_dir(test_dir):
+    print('Reading dataset...')
     image_files = os.listdir(test_dir + 'images/')
     image_files = sorted(image_files, key=lambda x: int(x.split("_")[2].split(".")[0]))
 
