@@ -1,8 +1,10 @@
 import os
-from main import training_process, feature_detection
+import numpy as np
+from main import feature_detection
 
 BLUE = '\u001b[34m'
 RED = '\u001b[31m'
+GREEN = '\u001b[32m'
 NORMAL = '\u001b[0m'
 
 task3_task2Dataset_dir = 'Task3/Task2Dataset/'
@@ -20,11 +22,11 @@ def read_no_rotations_dataset(dir):
             features = fr.read().splitlines()
         all_features = []
         for feature in features:
-            end_of_class = feature.find(", ")
-            end_of_tuple = feature.find("), (") + 1
-            feature_class = feature[:end_of_class]
-            feature_coord1 = eval(feature[end_of_class + 2:end_of_tuple])
-            feature_coord2 = eval(feature[end_of_tuple + 2:])
+            end_of_class_name_index = feature.find(", ")
+            end_of_first_tuple_index = feature.find("), (") + 1
+            feature_class = feature[:end_of_class_name_index]
+            feature_coord1 = eval(feature[end_of_class_name_index + 2:end_of_first_tuple_index])
+            feature_coord2 = eval(feature[end_of_first_tuple_index + 2:])
 
             all_features.append([feature_class, feature_coord1, feature_coord2])
         all_features.sort(key=lambda x:x[0])
@@ -48,11 +50,11 @@ def read_rotations_dataset(dir):
             features = fr.read().splitlines()
         all_features = []
         for feature in features:
-            end_of_class = feature.find(", ")
-            end_of_tuple = feature.find("), (") + 1
-            feature_class = feature[:end_of_class]
-            feature_coord1 = eval(feature[end_of_class + 2:end_of_tuple])
-            feature_coord2 = eval(feature[end_of_tuple + 2:])
+            end_of_class_name_index = feature.find(", ")
+            end_of_first_tuple_index = feature.find("), (") + 1
+            feature_class = feature[:end_of_class_name_index]
+            feature_coord1 = eval(feature[end_of_class_name_index + 2:end_of_first_tuple_index])
+            feature_coord2 = eval(feature[end_of_first_tuple_index + 2:])
 
             all_features.append([feature_class, feature_coord1, feature_coord2])
         all_features.sort(key=lambda x:x[0])
@@ -81,29 +83,23 @@ try:
             print('For:', image_path)
             print('Predicted:', [feature[0] for feature in predicted_features])
             print('Actual   :', [feature[0] for feature in actual_features])
-            print()
 
             # TODO: split this out to recognise, false positives, false negatives
-            actual_feature_names = [feature[0] for feature in actual_features]
-            is_correct = True
-            for feature in predicted_features:
-                if feature[0] not in actual_feature_names:
-                    is_correct = False
-                    break
-
-            if is_correct:
-                correct.append(image_path)
-                # print('Correct!!!')
+            if len(predicted_features) == len(actual_features) and \
+                all([f1[0] == f2[0] for f1, f2 in zip(predicted_features, actual_features)]):
+                    correct.append(image_path)
+                    print(GREEN, 'Correct!!!', NORMAL)
             else:
+                false_pos = [x[0] for x in predicted_features if x[0] not in [s[0] for s in actual_features]]
+                false_neg = [x[0] for x in actual_features if x[0] not in [s[0] for s in predicted_features]]
                 wrong.append(image_path)
-                # print('IN-Correct!!!')
+                print(RED, 'False pos:', false_pos, NORMAL)
+                print(RED, 'False neg:', false_neg, NORMAL)
+                print(RED, 'IN-Correct!!!', NORMAL)
 
         except Exception as e:
             print(RED, 'Unknown error occurred while testing image:', image_path, NORMAL, e)
             errors.append(image_path)
-
-    BLUE = '\u001b[34m'
-    NORMAL = '\u001b[0m'
 
     print(BLUE)
     print(f'Correct: {len(correct)}')

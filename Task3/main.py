@@ -1,9 +1,5 @@
 import cv2
-import numpy as np
 
-def training_process(training_data):
-    print('NOT IMPLEMENTED')
-    raise Exception('Function not implemented')
 
 def feature_detection(image_path, image_paths_to_match_against):
     original_query_image = cv2.imread(image_path)
@@ -23,7 +19,7 @@ def feature_detection(image_path, image_paths_to_match_against):
         matches = sorted(bf.match(query_desc, current_desc), key=lambda x: x.distance)
 
         # Get the best match and check if it is within a threshold distance
-        if matches[0].distance < 50.3:
+        if matches[0].distance < 50:
             # TODO: Determine bounding box, draw bounding box, add bounding box coords to found_features
             # NOTE: We get key-points, but there can be noise so we need to determine how to use them
 
