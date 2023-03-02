@@ -73,6 +73,7 @@ except Exception as e:
 
 print('Processing images ...')
 try:
+    #85% {'nfeatures': 0, 'nOctaveLayers': 2, 'contrastThreshold': 0.01, 'edgeThreshold': 10, 'sigma': 2.0}
     params_list = [{'nfeatures': nf, 'nOctaveLayers': nl, 'contrastThreshold': ct, 'edgeThreshold': et, 'sigma': s}
         for nf in [0]
         for nl in [2, 3, 4, 5]
@@ -85,7 +86,9 @@ try:
     best_params = {}
     start_t = time.time()
     test_dataset = all_no_rotation_images_and_features# + all_rotation_images_and_features
-    for i in range(len(params_list)):
+    # continue from here while due to performance improvements made part way through
+    start_index = 35
+    for i in range(start_index, len(params_list)):
         print(f'Grid-search progress: {i + 1}/{len(params_list)}\t ...', end='\r')
         correct = []
         wrong = []
@@ -96,22 +99,16 @@ try:
             # print('Actual   :', [feature[0] for feature in actual_features])
 
             # TODO: split this out to recognise, false positives, false negatives
-            if len(predicted_features) == len(actual_features) and \
-                all([f1[0] == f2[0] for f1, f2 in zip(predicted_features, actual_features)]):
-                    correct.append(image_path)
-                    # print(GREEN, 'Correct!!!', NORMAL)
+            if len(predicted_features) == len(actual_features) and all(f1[0] == f2[0] for f1, f2 in zip(predicted_features, actual_features)):
+                correct.append(image_path)
+                # print(GREEN, 'Correct!!!', NORMAL)
             else:
                 # false_pos = [x[0] for x in predicted_features if x[0] not in [s[0] for s in actual_features]]
                 # false_neg = [x[0] for x in actual_features if x[0] not in [s[0] for s in predicted_features]]
-                wrong.append(image_path)
                 # print(RED, 'False pos:', false_pos, NORMAL)
                 # print(RED, 'False neg:', false_neg, NORMAL)
                 # print(RED, 'IN-Correct!!!', NORMAL)
-
-            # except Exception as e:
-            #     print(RED, 'Unknown error occurred while testing image:', image_path, NORMAL, e)
-            #     errors.append(image_path)
-            #     exit()
+                wrong.append(image_path)
 
         accuracy = len(correct) * 100 / len(list(test_dataset))
         if accuracy > best_acc:
@@ -123,7 +120,6 @@ try:
         # print(BLUE)
         # print(f'Correct: {len(correct)}')
         # print(f'Wrong: {len(wrong)}')
-        # print(f'Errors: {len(errors)}')
         # print(f'Accuracy: {round(accuracy, 1)}%')
         # print(NORMAL)
 
