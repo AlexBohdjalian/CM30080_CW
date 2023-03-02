@@ -12,7 +12,7 @@ task3_task2Dataset_dir = 'Task3/Task2Dataset/'
 task3_task3Dataset_dir = 'Task3/Task3Dataset/'
 
 def read_no_rotations_dataset(dir):
-    print(f'Reading dataset {dir} ...')
+    print(f'Reading dataset with no rotated images: {dir}')
     image_files = os.listdir(dir + 'images/')
     image_files = sorted(image_files, key=lambda x: int(x.split("_")[2].split(".")[0]))
 
@@ -36,11 +36,11 @@ def read_no_rotations_dataset(dir):
     return all_data
 
 def read_training_dataset(dir):
-    print(f'Reading dataset {dir} ...')
+    print(f'Reading dataset with training images: {dir}')
     return [dir + 'png/' + path for path in os.listdir(dir + 'png/')]
 
 def read_rotations_dataset(dir):
-    print(f'Reading dataset {dir} ...')
+    print(f'Reading dataset with rotated images: {dir}')
     image_files = os.listdir(dir + 'images/')
     image_files = sorted(image_files, key=lambda x: int(x.split("_")[2].split(".")[0]))
 
@@ -71,9 +71,7 @@ except Exception as e:
     print(RED, 'Error while reading datasets:', NORMAL, e)
     exit()
 
-print('Processing images ...')
 try:
-    #85% {'nfeatures': 0, 'nOctaveLayers': 2, 'contrastThreshold': 0.01, 'edgeThreshold': 10, 'sigma': 2.0}
     params_list = [{'nfeatures': nf, 'nOctaveLayers': nl, 'contrastThreshold': ct, 'edgeThreshold': et, 'sigma': s}
         for nf in [0]
         for nl in [2, 3, 4, 5]
@@ -86,12 +84,12 @@ try:
     best_params = {}
     start_t = time.time()
     test_dataset = all_no_rotation_images_and_features# + all_rotation_images_and_features
-    # continue from here while due to performance improvements made part way through
-    start_index = 35
-    for i in range(start_index, len(params_list)):
+    print(f'Processing Images. There are {len(test_dataset)} images to classify')
+    for i in range(len(params_list)):
         print(f'Grid-search progress: {i + 1}/{len(params_list)}\t ...', end='\r')
-        correct = []
-        wrong = []
+        correct = 0
+        false_pos = 0
+        false_neg = 0
         for image_path, actual_features in test_dataset: # replace this with suitable dataset (or combined)
             predicted_features = sorted(feature_detection(image_path, all_training_data, params_list[i]), key = lambda x : x[0])
             # print('For:', image_path)
@@ -100,22 +98,21 @@ try:
 
             # TODO: split this out to recognise, false positives, false negatives
             if len(predicted_features) == len(actual_features) and all(f1[0] == f2[0] for f1, f2 in zip(predicted_features, actual_features)):
-                correct.append(image_path)
+                correct += 1
                 # print(GREEN, 'Correct!!!', NORMAL)
             else:
-                # false_pos = [x[0] for x in predicted_features if x[0] not in [s[0] for s in actual_features]]
-                # false_neg = [x[0] for x in actual_features if x[0] not in [s[0] for s in predicted_features]]
+                false_pos += any([x[0] for x in predicted_features if x[0] not in [s[0] for s in actual_features]])
+                false_neg += any([x[0] for x in actual_features if x[0] not in [s[0] for s in predicted_features]])
                 # print(RED, 'False pos:', false_pos, NORMAL)
                 # print(RED, 'False neg:', false_neg, NORMAL)
                 # print(RED, 'IN-Correct!!!', NORMAL)
-                wrong.append(image_path)
 
-        accuracy = len(correct) * 100 / len(list(test_dataset))
+        accuracy = correct * 100 / len(list(test_dataset))
         if accuracy > best_acc:
             best_acc = accuracy
             best_params = params_list[i]
 
-        print(f'Grid-search progress: {i + 1}/{len(params_list)}\t Accuracy: {round(accuracy, 1)}%\tTime: {round(time.time() - start_t)}s')
+        print(f'Grid-search progress: {i + 1}/{len(params_list)}\tFalse Pos: {false_pos}\tFalse Neg: {false_neg}\tAccuracy: {round(accuracy, 1)}%\tTime: {round(time.time() - start_t)}s')
 
         # print(BLUE)
         # print(f'Correct: {len(correct)}')

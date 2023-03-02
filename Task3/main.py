@@ -1,5 +1,27 @@
 import cv2
+cv2.setRNGSeed(0)
 
+
+def feature_detection_optimiser(image_path, images_to_match_against, all_sifts, bf):
+    query_image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+
+    results = []
+    for i in range(len(all_sifts)):
+        print(i)
+        _, query_desc = all_sifts[i].detectAndCompute(query_image, None)
+
+        found_features = []
+        for current_name, current_image in images_to_match_against:
+
+            _, current_desc = all_sifts[i].detectAndCompute(current_image, None)
+
+            matches = sorted(bf.match(query_desc, current_desc), key=lambda x: x.distance)
+
+            # Get the best match and check if it is within a threshold distance
+            if matches[0].distance < 50:
+                found_features.append([feature_name_from_path(current_name), (), ()])
+        results.append(found_features)
+    return results
 
 def feature_detection(image_path, image_paths_to_match_against, sift_params):
     # original_query_image = cv2.imread(image_path)
