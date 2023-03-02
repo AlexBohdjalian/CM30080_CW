@@ -1,11 +1,11 @@
 import cv2
 
 
-def feature_detection(image_path, image_paths_to_match_against):
+def feature_detection(image_path, image_paths_to_match_against, sift_params):
     original_query_image = cv2.imread(image_path)
     query_image = cv2.cvtColor(original_query_image, cv2.COLOR_BGR2GRAY)
 
-    sift = cv2.SIFT_create()
+    sift = cv2.SIFT_create(**sift_params)
     query_kp, query_desc = sift.detectAndCompute(query_image, None)
 
     bf = cv2.BFMatcher()
