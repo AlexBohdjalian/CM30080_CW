@@ -14,8 +14,7 @@ def feature_detection(image_path, image_paths_to_match_against):
 
     bf = cv2.BFMatcher()
 
-    found_features = []  # Create an empty list to store the features found in the training set
-
+    found_features = []
     for img_path in image_paths_to_match_against:
         current_image = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
 
@@ -24,7 +23,7 @@ def feature_detection(image_path, image_paths_to_match_against):
         matches = sorted(bf.match(query_desc, current_desc), key=lambda x: x.distance)
 
         # Get the best match and check if it is within a threshold distance
-        if matches[0].distance < 50:
+        if matches[0].distance < 50.3:
             found_features.append([feature_name_from_path(img_path), (), ()])
 
     # cv2.imshow('img', original_query_image)

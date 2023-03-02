@@ -79,16 +79,11 @@ try:
         try:
             predicted_features = sorted(feature_detection(image_path, all_training_data), key = lambda x : x[0])
             print('For:', image_path)
-            print('Predicted:', predicted_features)
-            print('Actual   :', actual_features)
+            print('Predicted:', [feature[0] for feature in predicted_features])
+            print('Actual   :', [feature[0] for feature in actual_features])
             print()
-            # print('Match between query descriptor {} and target descriptor {}: distance = {}'.format(
-            #     predicted_features.queryIdx,
-            #     predicted_features.trainIdx,
-            #     predicted_features.distance
-            # ))
 
-            # TODO: change this to match class names and loosely match bounding boxes?
+            # TODO: split this out to recognise, false positives, false negatives
             actual_feature_names = [feature[0] for feature in actual_features]
             is_correct = True
             for feature in predicted_features:
@@ -114,7 +109,7 @@ try:
     print(f'Correct: {len(correct)}')
     print(f'Wrong: {len(wrong)}')
     print(f'Errors: {len(errors)}')
-    print(f'Accuracy: {round(len(correct) / len(list(test_dataset)), 2)}%')
+    print(f'Accuracy: {round(len(correct) * 100 / len(list(test_dataset)), 2)}%')
     print(NORMAL)
 except Exception as e:
     print(RED, 'Unknown error occurred while processing images:', NORMAL, e)
