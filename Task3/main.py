@@ -24,6 +24,9 @@ def feature_detection(image_path, image_paths_to_match_against):
 
         # Get the best match and check if it is within a threshold distance
         if matches[0].distance < 50.3:
+            # TODO: Determine bounding box, draw bounding box, add bounding box coords to found_features
+            # NOTE: We get key-points, but there can be noise so we need to determine how to use them
+
             found_features.append([feature_name_from_path(img_path), (), ()])
 
     # cv2.imshow('img', original_query_image)
