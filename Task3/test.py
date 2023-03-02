@@ -84,36 +84,34 @@ try:
     best_acc = 0
     best_params = {}
     start_t = time.time()
+    test_dataset = all_no_rotation_images_and_features# + all_rotation_images_and_features
     for i in range(len(params_list)):
         print(f'Grid-search progress: {i + 1}/{len(params_list)}\t ...', end='\r')
         correct = []
         wrong = []
-        errors = []
-        test_dataset = all_no_rotation_images_and_features
         for image_path, actual_features in test_dataset: # replace this with suitable dataset (or combined)
-            try:
-                predicted_features = sorted(feature_detection(image_path, all_training_data, params_list[i]), key = lambda x : x[0])
-                # print('For:', image_path)
-                # print('Predicted:', [feature[0] for feature in predicted_features])
-                # print('Actual   :', [feature[0] for feature in actual_features])
+            predicted_features = sorted(feature_detection(image_path, all_training_data, params_list[i]), key = lambda x : x[0])
+            # print('For:', image_path)
+            # print('Predicted:', [feature[0] for feature in predicted_features])
+            # print('Actual   :', [feature[0] for feature in actual_features])
 
-                # TODO: split this out to recognise, false positives, false negatives
-                if len(predicted_features) == len(actual_features) and \
-                    all([f1[0] == f2[0] for f1, f2 in zip(predicted_features, actual_features)]):
-                        correct.append(image_path)
-                        # print(GREEN, 'Correct!!!', NORMAL)
-                else:
-                    # false_pos = [x[0] for x in predicted_features if x[0] not in [s[0] for s in actual_features]]
-                    # false_neg = [x[0] for x in actual_features if x[0] not in [s[0] for s in predicted_features]]
-                    wrong.append(image_path)
-                    # print(RED, 'False pos:', false_pos, NORMAL)
-                    # print(RED, 'False neg:', false_neg, NORMAL)
-                    # print(RED, 'IN-Correct!!!', NORMAL)
+            # TODO: split this out to recognise, false positives, false negatives
+            if len(predicted_features) == len(actual_features) and \
+                all([f1[0] == f2[0] for f1, f2 in zip(predicted_features, actual_features)]):
+                    correct.append(image_path)
+                    # print(GREEN, 'Correct!!!', NORMAL)
+            else:
+                # false_pos = [x[0] for x in predicted_features if x[0] not in [s[0] for s in actual_features]]
+                # false_neg = [x[0] for x in actual_features if x[0] not in [s[0] for s in predicted_features]]
+                wrong.append(image_path)
+                # print(RED, 'False pos:', false_pos, NORMAL)
+                # print(RED, 'False neg:', false_neg, NORMAL)
+                # print(RED, 'IN-Correct!!!', NORMAL)
 
-            except Exception as e:
-                print(RED, 'Unknown error occurred while testing image:', image_path, NORMAL, e)
-                errors.append(image_path)
-                exit()
+            # except Exception as e:
+            #     print(RED, 'Unknown error occurred while testing image:', image_path, NORMAL, e)
+            #     errors.append(image_path)
+            #     exit()
 
         accuracy = len(correct) * 100 / len(list(test_dataset))
         if accuracy > best_acc:

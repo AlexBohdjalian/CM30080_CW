@@ -2,11 +2,12 @@ import cv2
 
 
 def feature_detection(image_path, image_paths_to_match_against, sift_params):
-    original_query_image = cv2.imread(image_path)
-    query_image = cv2.cvtColor(original_query_image, cv2.COLOR_BGR2GRAY)
+    # original_query_image = cv2.imread(image_path)
+    # query_image = cv2.cvtColor(original_query_image, cv2.COLOR_BGR2GRAY)
+    query_image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
 
     sift = cv2.SIFT_create(**sift_params)
-    query_kp, query_desc = sift.detectAndCompute(query_image, None)
+    _, query_desc = sift.detectAndCompute(query_image, None)
 
     bf = cv2.BFMatcher()
 
@@ -14,7 +15,7 @@ def feature_detection(image_path, image_paths_to_match_against, sift_params):
     for img_path in image_paths_to_match_against:
         current_image = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
 
-        current_kp, current_desc = sift.detectAndCompute(current_image, None)
+        _, current_desc = sift.detectAndCompute(current_image, None)
 
         matches = sorted(bf.match(query_desc, current_desc), key=lambda x: x.distance)
 
