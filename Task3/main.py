@@ -74,7 +74,7 @@ def feature_detection(image_path, image_paths_to_match_against, sift_params, sho
             cv2.rectangle(orig_query_image, bb_1, bb_2, (0, 255, 0), 2)
             draw_text(orig_query_image, text=feature_name, to_centre=True, pos=(bb_1[0], bb_1[1] - 5))
 
-        found_features.append([feature_name_from_path(feature_name), bb_1, bb_2])
+        found_features.append([feature_name, bb_1, bb_2])
 
     if show_output:
         cv2.imshow("query_image", orig_query_image)

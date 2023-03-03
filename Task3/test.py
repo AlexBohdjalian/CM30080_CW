@@ -149,9 +149,7 @@ try:
         false_pos = 0
         false_neg = 0
         for image_path, actual_features in test_dataset: # replace this with suitable dataset (or combined)
-            predicted_features = sorted(feature_detection(image_path, all_training_data, params_list[i]), key = lambda x : x[0])
-            print(predicted_features)
-            exit()
+            predicted_features = sorted(feature_detection(image_path, all_training_data, params_list[i]), key=lambda x:x[0])
             # used = []
             # predicted_features = [[sub, used.append(sub[0])][0] for sub in predicted_features if sub[0] not in used]
             print('For:', image_path)
