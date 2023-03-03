@@ -1,12 +1,15 @@
 import os
+import cv2
+import shutil
 from main import training_process, feature_detection
 
 BLUE = '\u001b[34m'
 RED = '\u001b[31m'
 NORMAL = '\u001b[0m'
 
-task3_task2Dataset_dir = 'Task2/Task2Dataset/'
-task3_task3Dataset_dir = 'Task2/Task3Dataset/'
+task2_no_rotation_images_dir = 'Task2/Task2Dataset/TestWithoutRotations/'
+task2_rotated_images_dir = 'Task2/Task3Dataset/'
+task2_training_data_dir = 'Task2/Task2Dataset/Training/'
 
 def read_no_rotations_dataset(dir):
     print(f'Reading dataset {dir} ...')
@@ -59,12 +62,54 @@ def read_rotations_dataset(dir):
     return all_data
 
 try:
-    all_no_rotation_images_and_features = read_no_rotations_dataset(task3_task2Dataset_dir + 'TestWithoutRotations/')
-    all_training_data = read_training_dataset(task3_task2Dataset_dir + 'Training/')
-    all_rotation_images_and_features = read_rotations_dataset(task3_task3Dataset_dir)
+    all_no_rotation_images_and_features = read_no_rotations_dataset(task2_no_rotation_images_dir)
+    all_training_data = read_training_dataset(task2_training_data_dir)
+    all_rotation_images_and_features = read_rotations_dataset(task2_rotated_images_dir)
 except Exception as e:
     print(RED, 'Error while reading datasets:', NORMAL, e)
     print(NORMAL)
+    exit()
+
+directions = 16
+angles = [360 / directions * i for i in range(directions)] # up, tr, right, br, down, bl, left, tl
+tmp_file_dir = 'TmpRotated/'
+rotated_training_dataset = []
+print('Applying rotation to training set ...')
+try:
+    if os.path.exists(task2_training_data_dir + tmp_file_dir):
+        shutil.rmtree(task2_training_data_dir + tmp_file_dir)
+    os.makedirs(task2_training_data_dir + tmp_file_dir)
+
+    for training_image in all_training_data:
+        image = cv2.imread(training_image)
+        for angle in angles:
+            height, width = image.shape[:2] # image shape has 3 dimensions
+            image_center = (width/2, height/2) # getRotationMatrix2D needs coordinates in reverse order (width, height) compared to shape
+
+            rotated_image = cv2.getRotationMatrix2D(image_center, angle, 1.)
+
+            # rotation calculates the cos and sin, taking absolutes of those.
+            abs_cos = abs(rotated_image[0,0]) 
+            abs_sin = abs(rotated_image[0,1])
+
+            # find the new width and height bounds
+            bound_w = int(height * abs_sin + width * abs_cos)
+            bound_h = int(height * abs_cos + width * abs_sin)
+
+            # subtract old image center (bringing image back to origo) and adding the new image center coordinates
+            rotated_image[0, 2] += bound_w/2 - image_center[0]
+            rotated_image[1, 2] += bound_h/2 - image_center[1]
+
+            # rotate image with the new bounds and translated rotation matrix
+            rotated_image = cv2.warpAffine(image, rotated_image, (bound_w, bound_h), borderValue=(255,255,255))
+
+            rotated_image_name = training_image.replace('/Training/png/', f'/Training/{tmp_file_dir}{angle}deg_')
+            cv2.imwrite(rotated_image_name, rotated_image)
+            rotated_training_dataset.append(rotated_image_name)
+except Exception as e:
+    if os.path.exists(task2_training_data_dir + tmp_file_dir):
+        shutil.rmtree(task2_training_data_dir + tmp_file_dir)
+    print(RED, 'Error while applying rotation to training dataset:', NORMAL, e)
     exit()
 
 print('Training...')
