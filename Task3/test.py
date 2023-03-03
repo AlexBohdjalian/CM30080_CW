@@ -3,6 +3,7 @@ import shutil
 import time
 import cv2
 import numpy as np
+import traceback
 from main import feature_detection
 
 
@@ -72,10 +73,11 @@ try:
     all_rotation_images_and_features = read_rotations_dataset(task3_rotated_images_dir)
     all_training_data = read_training_dataset(task3_training_data_dir)
 except Exception as e:
-    print(RED, 'Error while reading datasets:', NORMAL, e)
+    print(RED, 'Error while reading datasets:', NORMAL, traceback.format_exc())
     exit()
 
-directions = 16
+directions = 8
+# TODO: might need to increase this
 angles = [360 / directions * i for i in range(directions)] # up, tr, right, br, down, bl, left, tl
 tmp_file_dir = 'TmpRotated/'
 rotated_training_dataset = []
@@ -108,13 +110,13 @@ try:
             # rotate image with the new bounds and translated rotation matrix
             rotated_image = cv2.warpAffine(image, rotated_image, (bound_w, bound_h), borderValue=(255,255,255))
 
-            rotated_image_name = training_image.replace('/Training/png/', f'/Training/{tmp_file_dir}{angle}deg_')
+            rotated_image_name = training_image.replace('/Training/png/', f'/Training/{tmp_file_dir}{round(angle)}deg_')
             cv2.imwrite(rotated_image_name, rotated_image)
             rotated_training_dataset.append(rotated_image_name)
 except Exception as e:
     if os.path.exists(task3_training_data_dir + tmp_file_dir):
         shutil.rmtree(task3_training_data_dir + tmp_file_dir)
-    print(RED, 'Error while applying rotation to training dataset:', NORMAL, e)
+    print(RED, 'Error while applying rotation to training dataset:', NORMAL, traceback.format_exc())
     exit()
 
 all_training_data = rotated_training_dataset
@@ -123,38 +125,50 @@ try:
     params_list = [{'nfeatures': nf, 'nOctaveLayers': nl, 'contrastThreshold': ct, 'edgeThreshold': et, 'sigma': s, 'matchThreshold': mf}
         for nf in [0]
         for nl in [2, 3, 4, 5]
-        for ct in [0.01, 0.03, 0.05, 0.07, 0.09]
+        for ct in [0.01, 0.05, 0.09]
         for et in [5, 10, 15, 20]
         for s in [1.2, 1.6, 2.0]
         # TODO: re-run with matchThreshold parameter as well now
-        for mf in range(45, 55, 0.1)
+        for mf in np.arange(45.0, 55.0, 0.25)
     ]
+    # with rotated training dataset:
+    # no rotations: 90% acc, 2 false pos, 0 false neg
+    # rotations   : 40% acc
+    # both        : 65% acc, 14 false pos, 1 false neg
+    # observations: if nOctaveLayers is anything but 2 it performs quite bad, 
+    params_list = [{'nfeatures': 0, 'nOctaveLayers': 2, 'contrastThreshold': 0.01, 'edgeThreshold': 15, 'sigma': 2.0, 'matchThreshold': 50}]
 
     best_acc = 0
     best_params = {}
     start_t = time.time()
-    test_dataset = all_no_rotation_images_and_features + all_rotation_images_and_features
-    print(f'There are {len(test_dataset)} images to classify...')
+    test_dataset = all_no_rotation_images_and_features# + all_rotation_images_and_features
+    print(f'There are {len(test_dataset)} images to classify ...')
     for i in range(len(params_list)):
-        print(f'Grid-search progress: {i + 1}/{len(params_list)}\t ...', end='\r')
+        print(f'Grid-search progress: {i + 1}/{len(params_list)}\t...', end='\r')
         correct = 0
         false_pos = 0
         false_neg = 0
         for image_path, actual_features in test_dataset: # replace this with suitable dataset (or combined)
             predicted_features = sorted(feature_detection(image_path, all_training_data, params_list[i]), key = lambda x : x[0])
-            # print('For:', image_path)
-            # print('Predicted:', [feature[0] for feature in predicted_features])
-            # print('Actual   :', [feature[0] for feature in actual_features])
+            print(predicted_features)
+            exit()
+            # used = []
+            # predicted_features = [[sub, used.append(sub[0])][0] for sub in predicted_features if sub[0] not in used]
+            print('For:', image_path)
+            print('Predicted:', [feature[0] for feature in predicted_features])
+            print('Actual   :', [feature[0] for feature in actual_features])
 
             if len(predicted_features) == len(actual_features) and all(f1[0] == f2[0] for f1, f2 in zip(predicted_features, actual_features)):
                 correct += 1
-                # print(GREEN, 'Correct!!!', NORMAL)
+                print(GREEN, 'Correct!!!', NORMAL)
             else:
-                false_pos += any([x[0] for x in predicted_features if x[0] not in [s[0] for s in actual_features]])
-                false_neg += any([x[0] for x in actual_features if x[0] not in [s[0] for s in predicted_features]])
+                false_pos_res = [x[0] for x in predicted_features if x[0] not in [s[0] for s in actual_features]]
+                false_neg_res = [x[0] for x in actual_features if x[0] not in [s[0] for s in predicted_features]]
                 # print(RED, 'False pos:', false_pos, NORMAL)
                 # print(RED, 'False neg:', false_neg, NORMAL)
-                # print(RED, 'IN-Correct!!!', NORMAL)
+                false_pos += any(false_pos_res)
+                false_neg += any(false_neg_res)
+                print(RED, 'IN-Correct!!!', NORMAL)
 
         accuracy = correct * 100 / len(list(test_dataset))
         if accuracy > best_acc:
@@ -169,12 +183,12 @@ try:
         # print(f'Accuracy: {round(accuracy, 1)}%')
         # print(NORMAL)
 
-    print(f'\nBest Params: {best_params}')
-    print(f'\nBest Params acc: {best_acc}')
+    print(BLUE, f'Best Params: {best_params}', NORMAL)
+    print(BLUE, f'Best Params accuracy: {best_acc}%', NORMAL)
 except Exception as e:
-    print(RED, 'Unknown error occurred while processing images:', NORMAL, e)
+    print(RED, 'Unknown error occurred while processing images:', NORMAL, traceback.format_exc())
     exit()
 
-# Tidy-up
-if os.path.exists(task3_training_data_dir + tmp_file_dir):
-    shutil.rmtree(task3_training_data_dir + tmp_file_dir)
+# # Tidy-up
+# if os.path.exists(task3_training_data_dir + tmp_file_dir):
+#     shutil.rmtree(task3_training_data_dir + tmp_file_dir)
