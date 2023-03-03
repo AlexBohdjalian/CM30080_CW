@@ -1,6 +1,9 @@
 import os
-from main import feature_detection
+import shutil
 import time
+import cv2
+import numpy as np
+from main import feature_detection
 
 
 BLUE = '\u001b[34m'
@@ -8,8 +11,9 @@ RED = '\u001b[31m'
 GREEN = '\u001b[32m'
 NORMAL = '\u001b[0m'
 
-task3_task2Dataset_dir = 'Task3/Task2Dataset/'
-task3_task3Dataset_dir = 'Task3/Task3Dataset/'
+task3_no_rotation_images_dir = 'Task3/Task2Dataset/TestWithoutRotations/'
+task3_rotated_images_dir = 'Task3/Task3Dataset/'
+task3_training_data_dir = 'Task3/Task2Dataset/Training/'
 
 def read_no_rotations_dataset(dir):
     print(f'Reading dataset with no rotated images: {dir}')
@@ -35,10 +39,6 @@ def read_no_rotations_dataset(dir):
 
     return all_data
 
-def read_training_dataset(dir):
-    print(f'Reading dataset with training images: {dir}')
-    return [dir + 'png/' + path for path in os.listdir(dir + 'png/')]
-
 def read_rotations_dataset(dir):
     print(f'Reading dataset with rotated images: {dir}')
     image_files = os.listdir(dir + 'images/')
@@ -63,28 +63,78 @@ def read_rotations_dataset(dir):
 
     return all_data
 
+def read_training_dataset(dir):
+    print(f'Reading dataset with training images: {dir}')
+    return [dir + 'png/' + path for path in os.listdir(dir + 'png/')]
+
 try:
-    all_no_rotation_images_and_features = read_no_rotations_dataset(task3_task2Dataset_dir + 'TestWithoutRotations/')
-    all_training_data = read_training_dataset(task3_task2Dataset_dir + 'Training/')
-    all_rotation_images_and_features = read_rotations_dataset(task3_task3Dataset_dir)
+    all_no_rotation_images_and_features = read_no_rotations_dataset(task3_no_rotation_images_dir)
+    all_rotation_images_and_features = read_rotations_dataset(task3_rotated_images_dir)
+    all_training_data = read_training_dataset(task3_training_data_dir)
 except Exception as e:
     print(RED, 'Error while reading datasets:', NORMAL, e)
     exit()
 
+directions = 16
+angles = [360 / directions * i for i in range(directions)] # up, tr, right, br, down, bl, left, tl
+tmp_file_dir = 'TmpRotated/'
+rotated_training_dataset = []
+print('Applying rotation to training set ...')
 try:
-    params_list = [{'nfeatures': nf, 'nOctaveLayers': nl, 'contrastThreshold': ct, 'edgeThreshold': et, 'sigma': s}
+    if os.path.exists(task3_training_data_dir + tmp_file_dir):
+        shutil.rmtree(task3_training_data_dir + tmp_file_dir)
+    os.makedirs(task3_training_data_dir + tmp_file_dir)
+
+    for training_image in all_training_data:
+        image = cv2.imread(training_image)
+        for angle in angles:
+            height, width = image.shape[:2] # image shape has 3 dimensions
+            image_center = (width/2, height/2) # getRotationMatrix2D needs coordinates in reverse order (width, height) compared to shape
+
+            rotated_image = cv2.getRotationMatrix2D(image_center, angle, 1.)
+
+            # rotation calculates the cos and sin, taking absolutes of those.
+            abs_cos = abs(rotated_image[0,0]) 
+            abs_sin = abs(rotated_image[0,1])
+
+            # find the new width and height bounds
+            bound_w = int(height * abs_sin + width * abs_cos)
+            bound_h = int(height * abs_cos + width * abs_sin)
+
+            # subtract old image center (bringing image back to origo) and adding the new image center coordinates
+            rotated_image[0, 2] += bound_w/2 - image_center[0]
+            rotated_image[1, 2] += bound_h/2 - image_center[1]
+
+            # rotate image with the new bounds and translated rotation matrix
+            rotated_image = cv2.warpAffine(image, rotated_image, (bound_w, bound_h), borderValue=(255,255,255))
+
+            rotated_image_name = training_image.replace('/Training/png/', f'/Training/{tmp_file_dir}{angle}deg_')
+            cv2.imwrite(rotated_image_name, rotated_image)
+            rotated_training_dataset.append(rotated_image_name)
+except Exception as e:
+    if os.path.exists(task3_training_data_dir + tmp_file_dir):
+        shutil.rmtree(task3_training_data_dir + tmp_file_dir)
+    print(RED, 'Error while applying rotation to training dataset:', NORMAL, e)
+    exit()
+
+all_training_data = rotated_training_dataset
+
+try:
+    params_list = [{'nfeatures': nf, 'nOctaveLayers': nl, 'contrastThreshold': ct, 'edgeThreshold': et, 'sigma': s, 'matchThreshold': mf}
         for nf in [0]
         for nl in [2, 3, 4, 5]
         for ct in [0.01, 0.03, 0.05, 0.07, 0.09]
         for et in [5, 10, 15, 20]
         for s in [1.2, 1.6, 2.0]
+        # TODO: re-run with matchThreshold parameter as well now
+        for mf in range(45, 55, 0.1)
     ]
 
     best_acc = 0
     best_params = {}
     start_t = time.time()
-    test_dataset = all_no_rotation_images_and_features# + all_rotation_images_and_features
-    print(f'Processing Images. There are {len(test_dataset)} images to classify')
+    test_dataset = all_no_rotation_images_and_features + all_rotation_images_and_features
+    print(f'There are {len(test_dataset)} images to classify...')
     for i in range(len(params_list)):
         print(f'Grid-search progress: {i + 1}/{len(params_list)}\t ...', end='\r')
         correct = 0
@@ -96,7 +146,6 @@ try:
             # print('Predicted:', [feature[0] for feature in predicted_features])
             # print('Actual   :', [feature[0] for feature in actual_features])
 
-            # TODO: split this out to recognise, false positives, false negatives
             if len(predicted_features) == len(actual_features) and all(f1[0] == f2[0] for f1, f2 in zip(predicted_features, actual_features)):
                 correct += 1
                 # print(GREEN, 'Correct!!!', NORMAL)
@@ -125,3 +174,7 @@ try:
 except Exception as e:
     print(RED, 'Unknown error occurred while processing images:', NORMAL, e)
     exit()
+
+# Tidy-up
+if os.path.exists(task3_training_data_dir + tmp_file_dir):
+    shutil.rmtree(task3_training_data_dir + tmp_file_dir)

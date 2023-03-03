@@ -28,7 +28,13 @@ def feature_detection(image_path, image_paths_to_match_against, sift_params):
     # query_image = cv2.cvtColor(original_query_image, cv2.COLOR_BGR2GRAY)
     query_image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
 
-    sift = cv2.SIFT_create(**sift_params)
+    sift = cv2.SIFT_create(
+        nfeatures=sift_params['nfeatures'],
+        nOctaveLayers=sift_params['nOctaveLayers'],
+        contrastThreshold=sift_params['contrastThreshold'],
+        edgeThreshold=sift_params['edgeThreshold'],
+        sigma=sift_params['sigma']
+    )
     _, query_desc = sift.detectAndCompute(query_image, None)
 
     bf = cv2.BFMatcher()
@@ -42,7 +48,7 @@ def feature_detection(image_path, image_paths_to_match_against, sift_params):
         matches = sorted(bf.match(query_desc, current_desc), key=lambda x: x.distance)
 
         # Get the best match and check if it is within a threshold distance
-        if matches[0].distance < 50:
+        if matches[0].distance < sift_params['matchThreshold']:
             # TODO: Determine bounding box, draw bounding box, add bounding box coords to found_features
             # NOTE: We get key-points, but there can be noise so we need to determine how to use them
 
