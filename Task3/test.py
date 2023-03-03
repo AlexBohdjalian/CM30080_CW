@@ -76,8 +76,9 @@ except Exception as e:
     print(RED, 'Error while reading datasets:', NORMAL, traceback.format_exc())
     exit()
 
+# TODO: might need to increase this for better performance
+# TODO: sift should be invariant of image rotation so why does this improve performance?
 directions = 8
-# TODO: might need to increase this
 angles = [360 / directions * i for i in range(directions)] # up, tr, right, br, down, bl, left, tl
 tmp_file_dir = 'TmpRotated/'
 rotated_training_dataset = []
@@ -132,8 +133,8 @@ try:
         for mf in np.arange(45.0, 55.0, 0.25)
     ]
     # with rotated training dataset:
-    # no rotations: 90% acc, 2 false pos, 0 false neg
-    # rotations   : 40% acc
+    # no rotations: 90% acc, 2  false pos, 0 false neg
+    # rotations   : 40% acc, 12 false pos, 1 false neg
     # both        : 65% acc, 14 false pos, 1 false neg
     # observations: if nOctaveLayers is anything but 2 it performs quite bad, 
     params_list = [{'nfeatures': 0, 'nOctaveLayers': 2, 'contrastThreshold': 0.01, 'edgeThreshold': 15, 'sigma': 2.0, 'matchThreshold': 50}]
