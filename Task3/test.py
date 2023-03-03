@@ -128,7 +128,6 @@ try:
         for ct in [0.01, 0.05, 0.09]
         for et in [5, 10, 15, 20]
         for s in [1.2, 1.6, 2.0]
-        # TODO: re-run with matchThreshold parameter as well now
         for mf in np.arange(45.0, 55.0, 0.25)
     ]
     # with rotated training dataset:
@@ -150,11 +149,11 @@ try:
         false_neg = 0
         for image_path, actual_features in test_dataset: # replace this with suitable dataset (or combined)
             predicted_features = sorted(feature_detection(image_path, all_training_data, params_list[i]), key=lambda x:x[0])
-            # used = []
-            # predicted_features = [[sub, used.append(sub[0])][0] for sub in predicted_features if sub[0] not in used]
             print('For:', image_path)
             print('Predicted:', [feature[0] for feature in predicted_features])
             print('Actual   :', [feature[0] for feature in actual_features])
+
+            # TODO: check bounding boxes are in roughly the same spot
 
             if len(predicted_features) == len(actual_features) and all(f1[0] == f2[0] for f1, f2 in zip(predicted_features, actual_features)):
                 correct += 1
