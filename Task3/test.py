@@ -83,6 +83,7 @@ tmp_file_dir = 'TmpRotated/'
 rotated_training_dataset = []
 print('Applying rotation to training set ...')
 try:
+    # TODO: decide if keep this or generate new each time for robustness
     if os.path.exists(task3_training_data_dir + tmp_file_dir):
         shutil.rmtree(task3_training_data_dir + tmp_file_dir)
     os.makedirs(task3_training_data_dir + tmp_file_dir)
@@ -154,6 +155,7 @@ try:
             print('Actual   :', [feature[0] for feature in actual_features])
 
             # TODO: check bounding boxes are in roughly the same spot
+            # TODO: image_10 and image_13 over predicts, view these images and where it thinks the extra features are
 
             if len(predicted_features) == len(actual_features) and all(f1[0] == f2[0] for f1, f2 in zip(predicted_features, actual_features)):
                 correct += 1
@@ -173,12 +175,6 @@ try:
             best_params = params_list[i]
 
         print(f'Grid-search progress: {i + 1}/{len(params_list)}\tFalse Pos: {false_pos}\tFalse Neg: {false_neg}\tAccuracy: {round(accuracy, 1)}%\tTime: {round(time.time() - start_t)}s')
-
-        # print(BLUE)
-        # print(f'Correct: {len(correct)}')
-        # print(f'Wrong: {len(wrong)}')
-        # print(f'Accuracy: {round(accuracy, 1)}%')
-        # print(NORMAL)
 
     print(BLUE, f'Best Params: {best_params}', NORMAL)
     print(BLUE, f'Best Params accuracy: {best_acc}%', NORMAL)
