@@ -2,8 +2,7 @@ import cv2
 cv2.setRNGSeed(0)
 
 
-def feature_detection_hyperopt(sift, bf, image_path, all_training_data_kp_and_desc, matchThreshold, doBoundingBox=True):
-    query_image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+def feature_detection_hyperopt(sift, bf, query_image, all_training_data_kp_and_desc, matchThreshold, doBoundingBox=True):
     query_kp, query_desc = sift.detectAndCompute(query_image, None)
 
     feature_keypoints = {}

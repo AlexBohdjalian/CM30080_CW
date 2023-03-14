@@ -33,7 +33,8 @@ def read_no_rotations_dataset(dir):
 
             all_features.append([feature_class, feature_coord1, feature_coord2])
         all_features.sort(key=lambda x:x[0])
-        all_data.append([dir + 'images/' + image_file, all_features])
+        path = dir + 'images/' + image_file
+        all_data.append([cv2.imread(path, cv2.IMREAD_GRAYSCALE), path, all_features])
 
     return all_data
 
@@ -57,13 +58,14 @@ def read_rotations_dataset(dir):
 
             all_features.append([feature_class, feature_coord1, feature_coord2])
         all_features.sort(key=lambda x:x[0])
-        all_data.append([dir + 'images/' + image_file, all_features])
+        path = dir + 'images/' + image_file
+        all_data.append([cv2.imread(path, cv2.IMREAD_GRAYSCALE), path, all_features])
 
     return all_data
 
 def read_training_dataset(dir):
     print(f'Reading dataset with training images: {dir}')
-    return [dir + 'png/' + path for path in os.listdir(dir + 'png/')]
+    return [(cv2.imread(dir + 'png/' + path, cv2.IMREAD_GRAYSCALE), path) for path in os.listdir(dir + 'png/')]
 
 try:
     all_no_rotation_images_and_features = read_no_rotations_dataset(task3_no_rotation_images_dir)
@@ -87,14 +89,13 @@ def objective_mae(param):
     )
 
     all_training_data_kp_and_desc = []
-    for img_path in all_training_data:
-        current_image = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+    for current_image, current_image_path in all_training_data:
         current_kp, current_desc = sift.detectAndCompute(current_image, None)
-        all_training_data_kp_and_desc.append((img_path, current_kp, current_desc))
+        all_training_data_kp_and_desc.append((current_image_path, current_kp, current_desc))
 
     wrong = 0
-    for image_path, actual_features in test_dataset:
-        predicted_features = feature_detection_hyperopt(sift, bf, image_path, all_training_data_kp_and_desc, param['matchThreshold'], doBoundingBox=False)
+    for image, image_path, actual_features in test_dataset:
+        predicted_features = feature_detection_hyperopt(sift, bf, image, all_training_data_kp_and_desc, param['matchThreshold'], doBoundingBox=False)
 
         predicted_feature_names_set = set([f[0] for f in predicted_features])
         actual_feature_names_set = set([f[0] for f in actual_features])
