@@ -95,14 +95,12 @@ def objective_mae(param):
     wrong = 0
     for image_path, actual_features in test_dataset:
         predicted_features = feature_detection_hyperopt(sift, bf, image_path, all_training_data_kp_and_desc, param['matchThreshold'], doBoundingBox=False)
-        if len(predicted_features) != len(actual_features):
-            wrong += 1
-            continue
 
-        for i in range(len(predicted_features)):
-            if predicted_features[i] != actual_features[i]:
-                wrong += 1
-                break
+        predicted_feature_names_set = set([f[0] for f in predicted_features])
+        actual_feature_names_set = set([f[0] for f in actual_features])
+        if predicted_feature_names_set != actual_feature_names_set:
+            wrong += 1
+            break
 
     mae = wrong / len(test_dataset)
 
@@ -125,8 +123,8 @@ try:
     }
 
     # test_dataset = all_no_rotation_images_and_features
-    test_dataset = all_rotation_images_and_features
-    # test_dataset = all_no_rotation_images_and_features + all_rotation_images_and_features
+    # test_dataset = all_rotation_images_and_features
+    test_dataset = all_no_rotation_images_and_features + all_rotation_images_and_features
 
     trials = Trials()
     fmin(
