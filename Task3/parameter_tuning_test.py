@@ -1,8 +1,7 @@
 import os
-import time
 import cv2
 import traceback
-from main import feature_detection
+from main import feature_detection_hyperopt
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 
 BLUE = '\u001b[34m'
@@ -75,26 +74,41 @@ except Exception as e:
     exit()
 
 def objective_mae(param):
-    correct = 0
-    # false_pos = 0
-    # false_neg = 0
+    sift = cv2.SIFT_create(
+        nfeatures=param['sift']['nfeatures'],
+        nOctaveLayers=param['sift']['nOctaveLayers'],
+        contrastThreshold=param['sift']['contrastThreshold'],
+        edgeThreshold=param['sift']['edgeThreshold'],
+        sigma=param['sift']['sigma']
+    )
+    bf = cv2.BFMatcher(
+        normType=param['BFMatcher']['normType'],
+        crossCheck=param['BFMatcher']['crossCheck']
+    )
+
+    all_training_data_kp_and_desc = []
+    for img_path in all_training_data:
+        current_image = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+        current_kp, current_desc = sift.detectAndCompute(current_image, None)
+        all_training_data_kp_and_desc.append((img_path, current_kp, current_desc))
+
+    wrong = 0
     for image_path, actual_features in test_dataset:
-        predicted_features = sorted(feature_detection(image_path, all_training_data, param), key=lambda x:x[0])
+        predicted_features = feature_detection_hyperopt(sift, bf, image_path, all_training_data_kp_and_desc, param['matchThreshold'], doBoundingBox=False)
+        if len(predicted_features) != len(actual_features):
+            wrong += 1
+            continue
 
-        if len(predicted_features) == len(actual_features) and all(f1[0] == f2[0] for f1, f2 in zip(predicted_features, actual_features)):
-            correct += 1
-        # else:
-        #     false_pos_res = [x[0] for x in predicted_features if x[0] not in [s[0] for s in actual_features]]
-        #     false_neg_res = [x[0] for x in actual_features if x[0] not in [s[0] for s in predicted_features]]
-        #     false_pos += any(false_pos_res)
-        #     false_neg += any(false_neg_res)
+        for i in range(len(predicted_features)):
+            if predicted_features[i] != actual_features[i]:
+                wrong += 1
+                break
 
-    mae = (len(test_dataset) - correct) / len(test_dataset)
+    mae = wrong / len(test_dataset)
 
     return {'loss': mae, 'status': STATUS_OK, 'model': param}
 
 try:
-    # hp.choice, hp.uniform
     param_space = {
         'sift': {
             'nfeatures': hp.choice('nfeatures', [0, 1000, 2000]),
@@ -123,8 +137,9 @@ try:
         trials=trials,
         timeout=None
     )
-    
+
     best_params = trials.best_trial['result']['model']
+    print(best_params)
 except Exception as e:
     print(RED, 'Unknown error occurred: ', NORMAL, traceback.format_exc())
     exit()
