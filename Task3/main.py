@@ -24,20 +24,22 @@ def feature_detection_optimiser(image_path, images_to_match_against, all_sifts, 
         results.append(found_features)
     return results
 
-def feature_detection(image_path, image_paths_to_match_against, sift_params, show_output=False):
-    orig_query_image = cv2.imread(image_path)
-    query_image = cv2.cvtColor(orig_query_image, cv2.COLOR_BGR2GRAY)
+def feature_detection(image_path, image_paths_to_match_against, params, show_output=False):
+    query_image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
     # TODO: check that gaussian blur is being applied because query_image contains specs of blurry dots (for artificial noise)
 
     sift = cv2.SIFT_create(
-        nfeatures=sift_params['nfeatures'],
-        nOctaveLayers=sift_params['nOctaveLayers'],
-        contrastThreshold=sift_params['contrastThreshold'],
-        edgeThreshold=sift_params['edgeThreshold'],
-        sigma=sift_params['sigma']
+        nfeatures=params['sift']['nfeatures'],
+        nOctaveLayers=params['sift']['nOctaveLayers'],
+        contrastThreshold=params['sift']['contrastThreshold'],
+        edgeThreshold=params['sift']['edgeThreshold'],
+        sigma=params['sift']['sigma']
     )
     query_kp, query_desc = sift.detectAndCompute(query_image, None)
-    bf = cv2.BFMatcher()
+    bf = cv2.BFMatcher(
+        normType=params['BFMatcher']['normType'],
+        crossCheck=params['BFMatcher']['crossCheck']
+    )
 
     feature_keypoints = {}
     for img_path in image_paths_to_match_against:
@@ -47,7 +49,7 @@ def feature_detection(image_path, image_paths_to_match_against, sift_params, sho
         matches = bf.match(query_desc, current_desc)
 
         # Get the best matches within a threshold distance
-        good_matches = [m for m in matches if m.distance < sift_params['matchThreshold']]
+        good_matches = [m for m in matches if m.distance < params['matchThreshold']]
         if len(good_matches) > 0:
             feature_name = feature_name_from_path(img_path)
             matched_query_kp = [query_kp[m.queryIdx] for m in good_matches]
@@ -70,16 +72,16 @@ def feature_detection(image_path, image_paths_to_match_against, sift_params, sho
             max([xy[1] for xy in keypoints])
         )
 
-        if show_output:
-            cv2.rectangle(orig_query_image, bb_1, bb_2, (0, 255, 0), 2)
-            draw_text(orig_query_image, text=feature_name, to_centre=True, pos=(bb_1[0], bb_1[1] - 5))
+        # if show_output:
+        #     cv2.rectangle(orig_query_image, bb_1, bb_2, (0, 255, 0), 2)
+        #     draw_text(orig_query_image, text=feature_name, to_centre=True, pos=(bb_1[0], bb_1[1] - 5))
 
         found_features.append([feature_name, bb_1, bb_2])
 
-    if show_output:
-        cv2.imshow("query_image", orig_query_image)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+    # if show_output:
+    #     cv2.imshow("query_image", orig_query_image)
+    #     cv2.waitKey(0)
+    #     cv2.destroyAllWindows()
 
     return found_features
 

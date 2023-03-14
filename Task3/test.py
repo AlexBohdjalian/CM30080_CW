@@ -1,11 +1,9 @@
 import os
-import shutil
 import time
 import cv2
-import numpy as np
 import traceback
 from main import feature_detection
-
+from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 
 BLUE = '\u001b[34m'
 RED = '\u001b[31m'
