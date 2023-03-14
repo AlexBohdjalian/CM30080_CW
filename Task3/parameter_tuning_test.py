@@ -121,7 +121,7 @@ try:
         algo=tpe.suggest,
         max_evals=500,
         trials=trials,
-        timeout=500
+        timeout=None
     )
     
     best_params = trials.best_trial['result']['model']
