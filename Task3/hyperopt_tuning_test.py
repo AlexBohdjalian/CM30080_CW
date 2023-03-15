@@ -4,23 +4,21 @@ import traceback
 from main import feature_detection_hyperopt
 from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
 
-BLUE = '\u001b[34m'
 RED = '\u001b[31m'
-GREEN = '\u001b[32m'
 NORMAL = '\u001b[0m'
 
 task3_no_rotation_images_dir = 'Task3/Task2Dataset/TestWithoutRotations/'
 task3_rotated_images_dir = 'Task3/Task3Dataset/'
 task3_training_data_dir = 'Task3/Task2Dataset/Training/'
 
-def read_no_rotations_dataset(dir):
-    print(f'Reading dataset with no rotated images: {dir}')
+def read_test_dataset(dir, file_ext):
+    print(f'Reading test dataset: {dir}')
     image_files = os.listdir(dir + 'images/')
     image_files = sorted(image_files, key=lambda x: int(x.split("_")[2].split(".")[0]))
 
     all_data = []
     for image_file in image_files:
-        csv_file = dir + 'annotations/' + image_file[:-4] + '.txt'
+        csv_file = dir + 'annotations/' + image_file[:-4] + file_ext
         with open(csv_file, 'r') as fr:
             features = fr.read().splitlines()
         all_features = []
@@ -34,42 +32,17 @@ def read_no_rotations_dataset(dir):
             all_features.append([feature_class, feature_coord1, feature_coord2])
         all_features.sort(key=lambda x:x[0])
         path = dir + 'images/' + image_file
-        all_data.append([cv2.imread(path, cv2.IMREAD_GRAYSCALE), path, all_features])
-
-    return all_data
-
-def read_rotations_dataset(dir):
-    print(f'Reading dataset with rotated images: {dir}')
-    image_files = os.listdir(dir + 'images/')
-    image_files = sorted(image_files, key=lambda x: int(x.split("_")[2].split(".")[0]))
-
-    all_data = []
-    for image_file in image_files:
-        csv_file = dir + 'annotations/' + image_file[:-4] + '.csv'
-        with open(csv_file, 'r') as fr:
-            features = fr.read().splitlines()
-        all_features = []
-        for feature in features:
-            end_of_class_name_index = feature.find(", ")
-            end_of_first_tuple_index = feature.find("), (") + 1
-            feature_class = feature[:end_of_class_name_index]
-            feature_coord1 = eval(feature[end_of_class_name_index + 2:end_of_first_tuple_index])
-            feature_coord2 = eval(feature[end_of_first_tuple_index + 2:])
-
-            all_features.append([feature_class, feature_coord1, feature_coord2])
-        all_features.sort(key=lambda x:x[0])
-        path = dir + 'images/' + image_file
-        all_data.append([cv2.imread(path, cv2.IMREAD_GRAYSCALE), path, all_features])
+        all_data.append([cv2.imread(path, cv2.IMREAD_GRAYSCALE), set([f[0] for f in all_features])])
 
     return all_data
 
 def read_training_dataset(dir):
-    print(f'Reading dataset with training images: {dir}')
+    print(f'Reading training dataset: {dir}')
     return [(cv2.imread(dir + 'png/' + path, cv2.IMREAD_GRAYSCALE), path) for path in os.listdir(dir + 'png/')]
 
 try:
-    all_no_rotation_images_and_features = read_no_rotations_dataset(task3_no_rotation_images_dir)
-    all_rotation_images_and_features = read_rotations_dataset(task3_rotated_images_dir)
+    all_no_rotation_images_and_features = read_test_dataset(task3_no_rotation_images_dir, '.txt')
+    all_rotation_images_and_features = read_test_dataset(task3_rotated_images_dir, '.csv')
     all_training_data = read_training_dataset(task3_training_data_dir)
 except Exception as e:
     print(RED, 'Error while reading datasets:', NORMAL, traceback.format_exc())
@@ -88,20 +61,25 @@ def objective_mae(param):
         crossCheck=param['BFMatcher']['crossCheck']
     )
 
-    all_training_data_kp_and_desc = []
+    all_training_data_kp_desc = []
     for current_image, current_image_path in all_training_data:
         current_kp, current_desc = sift.detectAndCompute(current_image, None)
-        all_training_data_kp_and_desc.append((current_image_path, current_kp, current_desc))
+        all_training_data_kp_desc.append((current_image_path, current_kp, current_desc))
 
     wrong = 0
-    for image, image_path, actual_features in test_dataset:
-        predicted_features = feature_detection_hyperopt(sift, bf, image, all_training_data_kp_and_desc, param['matchThreshold'], doBoundingBox=False)
+    for image, actual_feature_names_set in test_dataset:
+        predicted_features = feature_detection_hyperopt(
+            sift,
+            bf,
+            image,
+            all_training_data_kp_desc,
+            param['matchThreshold'],
+            doBoundingBox=True
+        )
 
         predicted_feature_names_set = set([f[0] for f in predicted_features])
-        actual_feature_names_set = set([f[0] for f in actual_features])
         if predicted_feature_names_set != actual_feature_names_set:
             wrong += 1
-            break
 
     mae = wrong / len(test_dataset)
 
@@ -122,10 +100,24 @@ try:
         },
         'matchThreshold': hp.uniform('matchThreshold', 45, 55),
     }
+    # Best parameters: 97.5% accuracy
+    # param_space = {
+    #     'sift': {
+    #         'nfeatures': 1000,
+    #         'nOctaveLayers': 1,
+    #         'contrastThreshold': 0.018249699973052022,
+    #         'edgeThreshold': 15.286233923400257,
+    #         'sigma': 1.9143801565688459,
+    #     },
+    #     'BFMatcher': {
+    #         'normType': 4,
+    #         'crossCheck': True,
+    #     },
+    #     'matchThreshold': 46.8732367930094,
+    # }
 
-    # test_dataset = all_no_rotation_images_and_features
-    # test_dataset = all_rotation_images_and_features
     test_dataset = all_no_rotation_images_and_features + all_rotation_images_and_features
+    # TODO: shuffle these?
 
     trials = Trials()
     fmin(

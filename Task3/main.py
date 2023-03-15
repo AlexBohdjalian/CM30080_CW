@@ -1,19 +1,29 @@
 import cv2
+import numpy as np
+
 cv2.setRNGSeed(0)
 
 
-def feature_detection_hyperopt(sift, bf, query_image, all_training_data_kp_and_desc, matchThreshold, doBoundingBox=True):
+def feature_detection_hyperopt(sift, bf, query_image, all_training_data_kp_desc, matchThreshold, doBoundingBox=True):
     query_kp, query_desc = sift.detectAndCompute(query_image, None)
 
     feature_keypoints = {}
-    for feature_path, _, current_desc in all_training_data_kp_and_desc:
+    for feature_path, current_kp, current_desc in all_training_data_kp_desc:
         matches = bf.match(query_desc, current_desc)
 
         # Get the best matches within a threshold distance
         good_matches = [m for m in matches if m.distance < matchThreshold]
-        if len(good_matches) > 0:
+        if len(good_matches) >= 4:
+            src_pts = np.float32([query_kp[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+            dst_pts = np.float32([current_kp[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+
+            # Find homography using RANSAC and remove outliers
+            M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+            matches_mask = mask.ravel().tolist()
+            inlier_matches = [good_matches[i] for i, val in enumerate(matches_mask) if val]
+
             feature_name = feature_name_from_path(feature_path)
-            matched_query_kp = [query_kp[m.queryIdx] for m in good_matches]
+            matched_query_kp = [query_kp[m.queryIdx] for m in inlier_matches]
             matched_query_xy = [(int(kp.pt[0]), int(kp.pt[1])) for kp in matched_query_kp]
 
             # Store matched keypoints in dictionary
@@ -34,14 +44,20 @@ def feature_detection_hyperopt(sift, bf, query_image, all_training_data_kp_and_d
                 max([xy[0] for xy in keypoints]),
                 max([xy[1] for xy in keypoints])
             )
+            if doBoundingBox:
+                cv2.rectangle(query_image, bb_1, bb_2, (0, 255, 0), 2)
+                draw_text(query_image, text=feature_name, to_centre=True, pos=(bb_1[0], bb_1[1] - 5))
+
         found_features.append((feature_name, bb_1, bb_2))
+
+    if doBoundingBox:
+        cv2.imshow("query_image", query_image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
     return found_features
 
-def feature_detection(image_path, image_paths_to_match_against, params, show_output=False):
-    query_image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-    # TODO: check that gaussian blur is being applied because query_image contains specs of blurry dots (for artificial noise)
-
+def feature_detection(query_image, image_paths_to_match_against, params, show_output=False):
     sift = cv2.SIFT_create(
         nfeatures=params['sift']['nfeatures'],
         nOctaveLayers=params['sift']['nOctaveLayers'],
@@ -56,8 +72,9 @@ def feature_detection(image_path, image_paths_to_match_against, params, show_out
     )
 
     feature_keypoints = {}
-    for img_path in image_paths_to_match_against:
-        current_image = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+    for current_image, current_image_path in image_paths_to_match_against:
+        _, current_desc = sift.detectAndCompute(current_image, None)
+        current_image = cv2.imread(current_image_path, cv2.IMREAD_GRAYSCALE)
 
         current_kp, current_desc = sift.detectAndCompute(current_image, None)
         matches = bf.match(query_desc, current_desc)
@@ -65,7 +82,7 @@ def feature_detection(image_path, image_paths_to_match_against, params, show_out
         # Get the best matches within a threshold distance
         good_matches = [m for m in matches if m.distance < params['matchThreshold']]
         if len(good_matches) > 0:
-            feature_name = feature_name_from_path(img_path)
+            feature_name = feature_name_from_path(current_image_path)
             matched_query_kp = [query_kp[m.queryIdx] for m in good_matches]
             matched_query_xy = [(int(kp.pt[0]), int(kp.pt[1])) for kp in matched_query_kp]
 
@@ -86,16 +103,16 @@ def feature_detection(image_path, image_paths_to_match_against, params, show_out
             max([xy[1] for xy in keypoints])
         )
 
-        # if show_output:
-        #     cv2.rectangle(orig_query_image, bb_1, bb_2, (0, 255, 0), 2)
-        #     draw_text(orig_query_image, text=feature_name, to_centre=True, pos=(bb_1[0], bb_1[1] - 5))
+        if show_output:
+            cv2.rectangle(query_image, bb_1, bb_2, (0, 255, 0), 2)
+            draw_text(query_image, text=feature_name, to_centre=True, pos=(bb_1[0], bb_1[1] - 5))
 
         found_features.append([feature_name, bb_1, bb_2])
 
-    # if show_output:
-    #     cv2.imshow("query_image", orig_query_image)
-    #     cv2.waitKey(0)
-    #     cv2.destroyAllWindows()
+    if show_output:
+        cv2.imshow("query_image", query_image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
     return found_features
 
