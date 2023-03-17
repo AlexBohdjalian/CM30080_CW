@@ -2,7 +2,7 @@ import os
 import time
 import cv2
 import traceback
-from main import feature_detection
+from main import feature_detection_marker
 
 BLUE = '\u001b[34m'
 RED = '\u001b[31m'
@@ -53,29 +53,32 @@ except Exception as e:
 try:
     # TODO: put best parameters here
     # TODO: re-write this file for markers to use on their own test data
-    param_space = {
-        'sift': {
-            'nfeatures': 1000,
-            'nOctaveLayers': 1,
-            'contrastThreshold': 0.018249699973052022,
-            'edgeThreshold': 15.286233923400257,
-            'sigma': 1.9143801565688459,
-        },
+    params = {
         'BFMatcher': {
-            'normType': 4,
-            'crossCheck': True,
+            'crossCheck': False,
+            'normType': 4
         },
-        'matchThreshold': 46.8732367930094,
+        'RANSAC': {
+            'confidence': 0.9423447867316301,
+            'maxIters': 1500,
+            'ransacReprojThreshold': 5.016592027133279
+        },
+        'ratioThreshold': 0.5011292212940329,
+        'sift': {
+            'contrastThreshold': 0.010041938693454615,
+            'edgeThreshold': 15.355230618863885,
+            'nOctaveLayers': 4,
+            'nfeatures': 2000,
+            'sigma': 1.934389681658647
+        }
     }
 
     test_dataset = all_no_rotation_images_and_features + all_rotation_images_and_features
-    print(f'There are {len(test_dataset)} images to classify ...')
     correct = 0
     false_pos = 0
     false_neg = 0
-    false_pos_neg = 0
     for image, actual_feature_names_set in test_dataset: # replace this with suitable dataset (or combined)
-        predicted_features = feature_detection(image, all_training_data, param_space, show_output=True)
+        predicted_features = feature_detection_marker(image, all_training_data, params, show_output=True)
         predicted_feature_names_set = set([f[0] for f in predicted_features])
 
         if actual_feature_names_set == predicted_feature_names_set:
@@ -84,11 +87,9 @@ try:
         elif predicted_feature_names_set != actual_feature_names_set:
             false_pos_dif = predicted_feature_names_set.difference(actual_feature_names_set)
             false_neg_dif = actual_feature_names_set.difference(predicted_feature_names_set)
-            if any(false_pos_dif) and any(false_neg_dif):
-                false_pos_neg += 1
-            elif any(false_pos_dif):
+            if any(false_pos_dif):
                 false_pos += 1
-            elif any(false_neg_dif):
+            if any(false_neg_dif):
                 false_neg += 1
             print(RED, 'IN-Correct!!!', NORMAL)
 
