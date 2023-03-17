@@ -92,7 +92,7 @@ def main_process_for_marker_test(test_dataset, training_dataset):
         print(RED, 'Unknown error occurred while processing images:', NORMAL, traceback.format_exc())
         exit()
 
-# NOTE: For marker, we have assumed that the additional data you have is in the same format as the data give.
+# NOTE: For marker, we have assumed that the additional data you have is in the same format as the data given.
 # Please replace the below three directories with your own and then execute this file.
 
 no_rotation_images_dir = 'Task3/Task2Dataset/TestWithoutRotations/'
