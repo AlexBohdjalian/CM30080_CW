@@ -9,13 +9,20 @@ def feature_detection_hyperopt(sift, bf, query_image, all_training_data_kp_desc,
 
     found_features = []
     for feature_path, current_kp, current_desc in all_training_data_kp_desc:
-        matches = bf.knnMatch(query_desc, current_desc, k=2)
+        try:
+            matches = bf.knnMatch(query_desc, current_desc, k=2)
+        except Exception as e:
+            print(query_desc, current_desc)
+            print(e)
+            exit()
 
         # Get the best matches within a threshold distance
         good_matches = []
-        for m, n in matches:
-            if m.distance < params['ratioThreshold'] * n.distance:
-                good_matches.append(m)
+        for match in matches:
+            if len(match) == 2:
+                m, n = match
+                if m.distance < params['ratioThreshold'] * n.distance:
+                    good_matches.append(m)
 
         if len(good_matches) >= 4:
             src_pts = np.float32([query_kp[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
@@ -26,9 +33,7 @@ def feature_detection_hyperopt(sift, bf, query_image, all_training_data_kp_desc,
                 src_pts,
                 dst_pts,
                 cv2.RANSAC,
-                ransacReprojThreshold=params['RANSAC']['ransacReprojThreshold'],
-                maxIters=params['RANSAC']['maxIters'],
-                confidence=params['RANSAC']['confidence']
+                **params['RANSAC'],
             )
             matches_mask = mask.ravel().tolist()
             inlier_matches = [good_matches[i] for i, val in enumerate(matches_mask) if val]
