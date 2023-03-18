@@ -47,16 +47,17 @@ def draw_oriented_bbox(image, top_left, bottom_right, angle, color=(0, 255, 0), 
 
 training_paths_and_images = read_training_dataset(training_data_dir, cv2.IMREAD_COLOR)
 
+draw_true_bbs = False
 print('Generating new test data...')
 for img, all_objects in generate_test_data(10, training_paths_and_images):
-    print(all_objects)
+    print('All Data for image:', all_objects)
     for object_deets in all_objects:
         name, top_left, bottom_right, angle = object_deets
-        img = draw_oriented_bbox(img, top_left, bottom_right, angle)
+        if draw_true_bbs:
+            img = draw_oriented_bbox(img, top_left, bottom_right, angle)
 
-        partial_object_deets = (name, top_left, bottom_right)
-
-        # do prediction stuff here
+    partial_object_deets = [obj[:3] for obj in all_objects]
+    print('Data available for prediction:', partial_object_deets)
 
     cv2.imshow('img', img)
     cv2.waitKey(0)

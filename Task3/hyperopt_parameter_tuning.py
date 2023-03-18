@@ -153,6 +153,8 @@ try:
         # params = {'BFMatcher': {'crossCheck': False, 'normType': 2}, 'RANSAC': {'confidence': 0.9630012856644677, 'maxIters': 1500, 'ransacReprojThreshold': 5.316510881843703}, 'ratioThreshold': 0.4026570872420355, 'sift': {'contrastThreshold': 0.006016864707454455, 'edgeThreshold': 11.771432535526955, 'nOctaveLayers': 4, 'nfeatures': 2000, 'sigma': 1.8086914201280728}}
         # accuracy 82.5%, best loss 8
         # params = {'BFMatcher': {'crossCheck': False, 'normType': 2}, 'RANSAC': {'confidence': 0.9046460355608786, 'maxIters': 1250, 'ransacReprojThreshold': 3.6582628257928227}, 'ratioThreshold': 0.4328757119687792, 'sift': {'contrastThreshold': 0.011965469851854161, 'edgeThreshold': 14.056885732766037, 'nOctaveLayers': 5, 'nfeatures': 1800, 'sigma': 1.7364978622695921}}
+        # accuracy 85%, best loss 10
+        # params = {'BFMatcher': {'crossCheck': False, 'normType': 2}, 'RANSAC': {'confidence': 0.8661380647700954, 'maxIters': 1200, 'ransacReprojThreshold': 5.433288470918298}, 'ratioThreshold': 0.48551688245254115, 'sift': {'contrastThreshold': 0.01966890925119041, 'edgeThreshold': 12.850484601282218, 'nOctaveLayers': 4, 'nfeatures': 1700, 'sigma': 1.8972781658650877}}
 
     test_dataset = all_no_rotation_images_and_features + all_rotation_images_and_features
     # TODO: shuffle these?
@@ -184,19 +186,16 @@ try:
             correct += 1
             print(GREEN, 'Correct!!!', NORMAL)
         elif predicted_feature_names_set != actual_feature_names_set:
-            false_pos_dif = predicted_feature_names_set.difference(actual_feature_names_set)
-            false_neg_dif = actual_feature_names_set.difference(predicted_feature_names_set)
-            if any(false_pos_dif):
-                false_pos += 1
-            if any(false_neg_dif):
-                false_neg += 1
+            false_pos += len(predicted_feature_names_set.difference(actual_feature_names_set))
+            false_neg += len(actual_feature_names_set.difference(predicted_feature_names_set))
             print(RED, 'IN-Correct!!!', NORMAL)
 
         print('Predicted:', predicted_feature_names_set)
         print('Actual   :', actual_feature_names_set)
 
     accuracy = correct * 100 / len(list(test_dataset))
-    print('Final Accuracy: ' + str(accuracy))
+    print('Final Accuracy:', str(accuracy))
+    print('Total false results:', str(false_pos + false_neg))
 
 except Exception as e:
     print(RED, 'Unknown error occurred:', NORMAL, traceback.format_exc())
