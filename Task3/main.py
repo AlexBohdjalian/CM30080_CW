@@ -1,3 +1,6 @@
+import os
+import time
+
 import cv2
 import numpy as np
 
@@ -44,23 +47,15 @@ def feature_detection_hyperopt(sift, bf, query_image, all_training_data_kp_desc,
 
     return found_features
 
-def feature_detection_marker(query_image, image_paths_to_match_against, params, show_output=False):
-    sift = cv2.SIFT_create(
-        nfeatures=params['sift']['nfeatures'],
-        nOctaveLayers=params['sift']['nOctaveLayers'],
-        contrastThreshold=params['sift']['contrastThreshold'],
-        edgeThreshold=params['sift']['edgeThreshold'],
-        sigma=params['sift']['sigma']
-    )
+def feature_detection_marker(sift, bf, colour_query_image, all_training_data, params, show_output=False):
+    query_image = cv2.cvtColor(colour_query_image, cv2.COLOR_BGR2GRAY)
+    
+    s = time.time()
     query_kp, query_desc = sift.detectAndCompute(query_image, None)
-    bf = cv2.BFMatcher(
-        normType=params['BFMatcher']['normType'],
-        crossCheck=params['BFMatcher']['crossCheck']
-    )
 
     found_features = []
-    for current_image, current_image_path in image_paths_to_match_against:
-        current_kp, current_desc = sift.detectAndCompute(current_image, None)
+    for feature_image, feature_image_path in all_training_data:
+        current_kp, current_desc = sift.detectAndCompute(feature_image, None)
 
         matches = bf.knnMatch(query_desc, current_desc, k=2)
 
@@ -87,7 +82,7 @@ def feature_detection_marker(query_image, image_paths_to_match_against, params, 
             inlier_matches = [good_matches[i] for i, val in enumerate(matches_mask) if val]
 
             if len(inlier_matches) > 0:
-                feature_name = feature_name_from_path(current_image_path)
+                feature_name = feature_name_from_path(feature_image_path)
                 matched_query_kp = [query_kp[m.queryIdx] for m in good_matches]
                 matched_query_xy = [(int(kp.pt[0]), int(kp.pt[1])) for kp in matched_query_kp]
 
@@ -96,17 +91,57 @@ def feature_detection_marker(query_image, image_paths_to_match_against, params, 
                 bb_bottom_right = np.max(box, axis=0)
 
                 if show_output:
-                    cv2.drawContours(query_image, [box], 0, (0, 255, 0), 2)
-                    draw_text(query_image, text=feature_name, to_centre=True, pos=(bb_top_left[0], bb_top_left[1] - 5))
+                    cv2.drawContours(colour_query_image, [box], 0, (0, 255, 0), 2)
+                    draw_text(colour_query_image, text=feature_name, to_centre=True, pos=(bb_top_left[0], bb_top_left[1] - 5))
 
                 found_features.append((feature_name, bb_top_left, bb_bottom_right))
-
+    run_time = time.time() - s
     if show_output:
-        cv2.imshow("query_image", query_image)
-        cv2.waitKey(1000)
+        draw_text(colour_query_image, 'Press q to see next...', text_color_bg=(0,0,0))
+        cv2.imshow("Predictions Image", colour_query_image)
+        cv2.waitKey(0)
         cv2.destroyAllWindows()
 
-    return found_features
+    return found_features, run_time
+
+def read_test_dataset(dir, file_ext, read_colour=False):
+    print(f'Reading test dataset: {dir}')
+    colour_mode = cv2.IMREAD_GRAYSCALE
+    if read_colour:
+        colour_mode = cv2.IMREAD_COLOR
+
+    image_files = os.listdir(dir + 'images/')
+    image_files = sorted(image_files, key=lambda x: int(x.split("_")[2].split(".")[0]))
+
+    all_data = []
+    for image_file in image_files:
+        csv_file = dir + 'annotations/' + image_file[:-4] + file_ext
+        with open(csv_file, 'r') as fr:
+            features = fr.read().splitlines()
+        all_features = []
+        for feature in features:
+            end_of_class_name_index = feature.find(", ")
+            end_of_first_tuple_index = feature.find("), (") + 1
+            feature_class = feature[:end_of_class_name_index]
+            feature_coord1 = eval(feature[end_of_class_name_index + 2:end_of_first_tuple_index])
+            feature_coord2 = eval(feature[end_of_first_tuple_index + 2:])
+
+            all_features.append([feature_class, feature_coord1, feature_coord2])
+        path = dir + 'images/' + image_file
+
+        all_data.append((
+            cv2.imread(path, colour_mode),
+            all_features
+        ))
+
+    return all_data
+
+def read_training_dataset(dir):
+    print(f'Reading training dataset: {dir}')
+    return [(
+        cv2.imread(dir + 'png/' + path, cv2.IMREAD_GRAYSCALE),
+        path
+    ) for path in os.listdir(dir + 'png/')]
 
 def feature_name_from_path(img_path):
     return img_path[img_path.find('-')+1:img_path.find('.png')]

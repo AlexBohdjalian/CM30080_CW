@@ -1,111 +1,82 @@
-import os
-import time
-import cv2
 import traceback
-from main import feature_detection_marker
+
+import cv2
+import numpy as np
+from main import feature_detection_marker, read_test_dataset, read_training_dataset
 
 BLUE = '\u001b[34m'
 RED = '\u001b[31m'
 GREEN = '\u001b[32m'
 NORMAL = '\u001b[0m'
 
-def read_test_dataset(dir, file_ext):
-    print(f'Reading test dataset: {dir}')
-    image_files = os.listdir(dir + 'images/')
-    image_files = sorted(image_files, key=lambda x: int(x.split("_")[2].split(".")[0]))
-
-    all_data = []
-    for image_file in image_files:
-        csv_file = dir + 'annotations/' + image_file[:-4] + file_ext
-        with open(csv_file, 'r') as fr:
-            features = fr.read().splitlines()
-        all_features = []
-        for feature in features:
-            end_of_class_name_index = feature.find(", ")
-            end_of_first_tuple_index = feature.find("), (") + 1
-            feature_class = feature[:end_of_class_name_index]
-            feature_coord1 = eval(feature[end_of_class_name_index + 2:end_of_first_tuple_index])
-            feature_coord2 = eval(feature[end_of_first_tuple_index + 2:])
-
-            all_features.append([feature_class, feature_coord1, feature_coord2])
-        all_features.sort(key=lambda x:x[0])
-        path = dir + 'images/' + image_file
-        all_data.append([cv2.imread(path, cv2.IMREAD_GRAYSCALE), set([f[0] for f in all_features])])
-
-    return all_data
-
-def read_training_dataset(dir):
-    print(f'Reading training dataset: {dir}')
-    return [(cv2.imread(dir + 'png/' + path, cv2.IMREAD_GRAYSCALE), path) for path in os.listdir(dir + 'png/')]
-
-def main_process_for_marker_test(test_dataset, training_dataset):
+def main_process_for_marker_test(marker_test_dataset, training_dataset, params):
     try:
-        # TODO: put best parameters here
-        params = {
-            'BFMatcher': {
-                'crossCheck': False,
-                'normType': 4
-            },
-            'RANSAC': {
-                'confidence': 0.9423447867316301,
-                'maxIters': 1500,
-                'ransacReprojThreshold': 5.016592027133279
-            },
-            'ratioThreshold': 0.5011292212940329,
-            'sift': {
-                'contrastThreshold': 0.010041938693454615,
-                'edgeThreshold': 15.355230618863885,
-                'nOctaveLayers': 4,
-                'nfeatures': 2000,
-                'sigma': 1.934389681658647
-            }
-        }
+        sift = cv2.SIFT_create(**params['sift'])
+        bf = cv2.BFMatcher(**params['BFMatcher'])
 
-        test_dataset = all_no_rotation_images_and_features + all_rotation_images_and_features
         correct = 0
         false_pos = 0
         false_neg = 0
-        for image, actual_feature_names_set in test_dataset:
-            predicted_features = feature_detection_marker(image, all_training_data, params, show_output=True)
+        times = []
+        for i in range(len(test_dataset)):
+            colour_query_image, actual_features = marker_test_dataset[i]
+
+            print(f'Test Image {i} ...')
+            predicted_features, run_time = feature_detection_marker(
+                sift,
+                bf,
+                colour_query_image,
+                training_dataset,
+                params,
+                show_output=False # TODO: set to True before submitting
+            )
+
+            times.append(run_time)
             predicted_feature_names_set = set([f[0] for f in predicted_features])
+            actual_feature_names_set = set([f[0] for f in actual_features])
 
             # TODO: as per mark scheme, get True Positives, False Positives, etc.
             if actual_feature_names_set == predicted_feature_names_set:
                 correct += 1
                 print(GREEN, 'Correct!!!', NORMAL)
             elif predicted_feature_names_set != actual_feature_names_set:
-                false_pos_dif = predicted_feature_names_set.difference(actual_feature_names_set)
-                false_neg_dif = actual_feature_names_set.difference(predicted_feature_names_set)
-                if any(false_pos_dif):
-                    false_pos += 1
-                if any(false_neg_dif):
-                    false_neg += 1
+                false_pos += len(predicted_feature_names_set.difference(actual_feature_names_set))
+                false_neg += len(actual_feature_names_set.difference(predicted_feature_names_set))
                 print(RED, 'IN-Correct!!!', NORMAL)
 
             print('Predicted:', predicted_feature_names_set)
             print('Actual   :', actual_feature_names_set)
+            print()
 
         accuracy = correct * 100 / len(list(test_dataset))
-        print('Accuracy:', accuracy)
-
-    except Exception as e:
-        print(RED, 'Unknown error occurred while processing images:', NORMAL, traceback.format_exc())
+        total_false_results = false_pos + false_neg
+        print(f'Accuracy: {accuracy}%')
+        print(f'Total false results: {total_false_results}')
+        print(f'Average runtime per image: {round(np.mean(times), 3)}ms')
+        print(BLUE, f'Note: The average runtime is for the feature matching process '
+              + 'and does not include any additional processing done to check '
+              + 'accuracy, display the results, etc.', NORMAL)
+    except:
+        print(RED, 'Unknown error occurred:', NORMAL, traceback.format_exc())
         exit()
 
-# NOTE: For marker, we have assumed that the additional data you have is in the same format as the data given.
-# Please replace the below three directories with your own and then execute this file.
+if __name__ == '__main__':
+    params = {'BFMatcher': {'crossCheck': False, 'normType': 2}, 'RANSAC': {'confidence': 0.9630012856644677, 'maxIters': 1500, 'ransacReprojThreshold': 5.316510881843703}, 'ratioThreshold': 0.4026570872420355, 'sift': {'contrastThreshold': 0.006016864707454455, 'edgeThreshold': 11.771432535526955, 'nOctaveLayers': 4, 'nfeatures': 2000, 'sigma': 1.8086914201280728}}
+    # params = {'BFMatcher': {'crossCheck': False, 'normType': 2}, 'RANSAC': {'confidence': 0.8661380647700954, 'maxIters': 1200, 'ransacReprojThreshold': 5.433288470918298}, 'ratioThreshold': 0.48551688245254115, 'sift': {'contrastThreshold': 0.01966890925119041, 'edgeThreshold': 12.850484601282218, 'nOctaveLayers': 4, 'nfeatures': 1700, 'sigma': 1.8972781658650877}}
 
-no_rotation_images_dir = 'Task3/Task2Dataset/TestWithoutRotations/'
-rotated_images_dir = 'Task3/Task3Dataset/'
-training_images_dir = 'Task3/Task2Dataset/Training/'
+    # NOTE: For marker, we have assumed that the additional data you have is in the same format as the data given.
+    # Please replace the below three directories with your own and then execute this file.
+    no_rotation_images_dir = 'Task3/Task2Dataset/TestWithoutRotations/'
+    rotated_images_dir = 'Task3/Task3Dataset/'
+    training_images_dir = 'Task3/Task2Dataset/Training/'
 
-try:
-    all_no_rotation_images_and_features = read_test_dataset(no_rotation_images_dir, '.txt')
-    all_rotation_images_and_features = read_test_dataset(rotated_images_dir, '.csv')
-    all_training_data = read_training_dataset(training_images_dir)
-except Exception as e:
-    print(RED, 'Error while reading datasets:', NORMAL, traceback.format_exc())
-    exit()
+    try:
+        all_no_rotation_images_and_features = read_test_dataset(no_rotation_images_dir, '.txt', read_colour=True)
+        all_rotation_images_and_features = read_test_dataset(rotated_images_dir, '.csv', read_colour=True)
+        all_training_data = read_training_dataset(training_images_dir)
+    except Exception as e:
+        print(RED, 'Error while reading datasets:', NORMAL, traceback.format_exc())
+        exit()
 
-test_dataset = all_rotation_images_and_features + all_no_rotation_images_and_features
-main_process_for_marker_test(test_dataset, all_training_data)
+    test_dataset = all_no_rotation_images_and_features + all_rotation_images_and_features
+    main_process_for_marker_test(test_dataset, all_training_data, params)
