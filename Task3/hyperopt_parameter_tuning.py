@@ -49,7 +49,7 @@ def objective_false_res(param):
 
     accuracy = correct / len(test_dataset)
     if accuracy >= 0.8:
-        print('Current Accuracy: ' + str(accuracy))
+        print(f'Current Accuracy: {accuracy}, loss: {false_results}')
         print('Current Params: ' + str(param))
     return {'loss': false_results, 'status': STATUS_OK, 'model': param}
 
@@ -95,45 +95,45 @@ try:
     #     }
     # }
     # Refined again:
-    param_space = {
-        'sift': {
-            'nfeatures': hp.choice('nfeatures', range(1700, 2301, 100)),
-            'nOctaveLayers': hp.choice('nOctaveLayers', range(3, 6)),
-            'contrastThreshold': hp.uniform('contrastThreshold', 0.005, 0.15),
-            'edgeThreshold': hp.uniform('edgeThreshold', 10, 15),
-            'sigma': hp.uniform('sigma', 0.1, 2.1),
-        },
-        'BFMatcher': {
-            'normType': cv2.NORM_L1, # seems to have converged
-            'crossCheck': False, # can only be False for knnMatch
-        },
-        'ratioThreshold': hp.uniform('ratioThreshold', 0.3, 0.6),
-        'RANSAC': {
-            'ransacReprojThreshold': hp.uniform('ransacReprojThreshold', 2.5, 7.5),
-            'maxIters': hp.choice('maxIters', range(1000, 1501, 100)),
-            'confidence': hp.uniform('confidence', 0.85, 0.98),
-        }
-    }
-    # And again
     # param_space = {
     #     'sift': {
-    #         'nfeatures': hp.choice('nfeatures', range(0, 2501, 250)),
+    #         'nfeatures': hp.choice('nfeatures', range(1700, 2301, 100)),
     #         'nOctaveLayers': hp.choice('nOctaveLayers', range(3, 6)),
-    #         'contrastThreshold': hp.uniform('contrastThreshold', 0.001, 0.2),
-    #         'edgeThreshold': hp.uniform('edgeThreshold', 5, 20),
-    #         'sigma': hp.uniform('sigma', 0.1, 2.5),
+    #         'contrastThreshold': hp.uniform('contrastThreshold', 0.005, 0.15),
+    #         'edgeThreshold': hp.uniform('edgeThreshold', 10, 15),
+    #         'sigma': hp.uniform('sigma', 0.1, 2.1),
     #     },
     #     'BFMatcher': {
-    #         'normType': hp.choice('normType', [cv2.NORM_L2, cv2.NORM_L1]),
+    #         'normType': cv2.NORM_L1, # seems to have converged
     #         'crossCheck': False, # can only be False for knnMatch
     #     },
-    #     'ratioThreshold': hp.uniform('ratioThreshold', 0.5, 0.8),
+    #     'ratioThreshold': hp.uniform('ratioThreshold', 0.3, 0.6),
     #     'RANSAC': {
-    #         'ransacReprojThreshold': hp.uniform('ransacReprojThreshold', 2, 9),
-    #         'maxIters': hp.choice('maxIters', range(500, 2001, 100)),
-    #         'confidence': hp.uniform('confidence', 0.8, 0.97),
+    #         'ransacReprojThreshold': hp.uniform('ransacReprojThreshold', 2.5, 7.5),
+    #         'maxIters': hp.choice('maxIters', range(1000, 1501, 100)),
+    #         'confidence': hp.uniform('confidence', 0.85, 0.98),
     #     }
     # }
+    # And again
+    param_space = {
+        'sift': {
+            'nfeatures': hp.choice('nfeatures', [0] + list(range(1900, 2501, 250))),
+            'nOctaveLayers': hp.choice('nOctaveLayers', range(3, 6)),
+            'contrastThreshold': hp.uniform('contrastThreshold', 0.001, 0.1),
+            'edgeThreshold': hp.uniform('edgeThreshold', 7, 14),
+            'sigma': hp.uniform('sigma', 0.75, 2.5),
+        },
+        'BFMatcher': {
+            'normType': cv2.NORM_L1,
+            'crossCheck': False, # can only be False for knnMatch
+        },
+        'ratioThreshold': hp.uniform('ratioThreshold', 0.25, 0.65),
+        'RANSAC': {
+            'ransacReprojThreshold': hp.uniform('ransacReprojThreshold', 3, 8),
+            'maxIters': hp.choice('maxIters', range(1000, 2001, 100)),
+            'confidence': hp.uniform('confidence', 0.75, 0.99),
+        }
+    }
 
     # Best parameters, without geometric homography stuff:
         # accuracy 97.5%

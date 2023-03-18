@@ -61,8 +61,25 @@ def main_process_for_marker_test(marker_test_dataset, training_dataset, params):
         exit()
 
 if __name__ == '__main__':
-    params = {'BFMatcher': {'crossCheck': False, 'normType': 2}, 'RANSAC': {'confidence': 0.9630012856644677, 'maxIters': 1500, 'ransacReprojThreshold': 5.316510881843703}, 'ratioThreshold': 0.4026570872420355, 'sift': {'contrastThreshold': 0.006016864707454455, 'edgeThreshold': 11.771432535526955, 'nOctaveLayers': 4, 'nfeatures': 2000, 'sigma': 1.8086914201280728}}
-    # params = {'BFMatcher': {'crossCheck': False, 'normType': 2}, 'RANSAC': {'confidence': 0.8661380647700954, 'maxIters': 1200, 'ransacReprojThreshold': 5.433288470918298}, 'ratioThreshold': 0.48551688245254115, 'sift': {'contrastThreshold': 0.01966890925119041, 'edgeThreshold': 12.850484601282218, 'nOctaveLayers': 4, 'nfeatures': 1700, 'sigma': 1.8972781658650877}}
+    params = {
+        'BFMatcher': {
+            'crossCheck': False,
+            'normType': 2
+        },
+        'RANSAC': {
+            'confidence': 0.9630012856644677,
+            'maxIters': 1500,
+            'ransacReprojThreshold': 5.316510881843703
+        },
+        'ratioThreshold': 0.4026570872420355,
+        'sift': {
+            'contrastThreshold': 0.006016864707454455,
+            'edgeThreshold': 11.771432535526955,
+            'nOctaveLayers': 4,
+            'nfeatures': 2000,
+            'sigma': 1.8086914201280728
+        }
+    }
 
     # NOTE: For marker, we have assumed that the additional data you have is in the same format as the data given.
     # Please replace the below three directories with your own and then execute this file.
