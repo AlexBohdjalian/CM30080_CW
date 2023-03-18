@@ -4,11 +4,6 @@ import os
 import numpy as np
 
 
-no_rotation_images_dir = 'Task3/Task2Dataset/TestWithoutRotations/'
-rotated_images_dir = 'Task3/Task3Dataset/'
-training_data_dir = 'Task3/Task2Dataset/Training/'
-
-
 def read_training_dataset(dir, imread_mode=cv2.IMREAD_GRAYSCALE):
     print(f'Reading training dataset: {dir}')
     return [(
@@ -44,7 +39,7 @@ def draw_oriented_bbox(image, top_left, bottom_right, angle, color=(0, 255, 0), 
         cv2.line(image, tuple(pts[i]), tuple(pts[(i+1)%4]), color, thickness)
     return image
 
-
+training_data_dir = 'Task3/Task2Dataset/Training/'
 training_paths_and_images = read_training_dataset(training_data_dir, cv2.IMREAD_COLOR)
 
 draw_true_bbs = False

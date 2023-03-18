@@ -2,8 +2,7 @@ import traceback
 
 import cv2
 from hyperopt import STATUS_FAIL, STATUS_OK, Trials, fmin, hp, tpe
-from main import feature_detection_hyperopt, read_test_dataset, read_training_dataset
-from marker_test import main_process_for_marker_test
+from main import feature_detection_hyperopt, main_process_for_marker, read_test_dataset, read_training_dataset
 
 RED = '\u001b[31m'
 GREEN = '\u001b[32m'
@@ -17,6 +16,7 @@ try:
     all_no_rotation_images_and_features = read_test_dataset(task3_no_rotation_images_dir, '.txt')
     all_rotation_images_and_features = read_test_dataset(task3_rotated_images_dir, '.csv')
     all_training_data = read_training_dataset(task3_training_data_dir)
+    print()
 except Exception as e:
     print(RED, 'Error while reading datasets:', NORMAL, traceback.format_exc())
     exit()
@@ -95,43 +95,23 @@ try:
     #     }
     # }
     # Refined again:
-    # param_space = {
-    #     'sift': {
-    #         'nfeatures': hp.choice('nfeatures', range(1700, 2301, 100)),
-    #         'nOctaveLayers': hp.choice('nOctaveLayers', range(3, 6)),
-    #         'contrastThreshold': hp.uniform('contrastThreshold', 0.005, 0.15),
-    #         'edgeThreshold': hp.uniform('edgeThreshold', 10, 15),
-    #         'sigma': hp.uniform('sigma', 0.1, 2.1),
-    #     },
-    #     'BFMatcher': {
-    #         'normType': cv2.NORM_L1, # seems to have converged
-    #         'crossCheck': False, # can only be False for knnMatch
-    #     },
-    #     'ratioThreshold': hp.uniform('ratioThreshold', 0.3, 0.6),
-    #     'RANSAC': {
-    #         'ransacReprojThreshold': hp.uniform('ransacReprojThreshold', 2.5, 7.5),
-    #         'maxIters': hp.choice('maxIters', range(1000, 1501, 100)),
-    #         'confidence': hp.uniform('confidence', 0.85, 0.98),
-    #     }
-    # }
-    # And again
     param_space = {
         'sift': {
-            'nfeatures': hp.choice('nfeatures', [0] + list(range(1900, 2501, 250))),
+            'nfeatures': hp.choice('nfeatures', range(1700, 2301, 100)),
             'nOctaveLayers': hp.choice('nOctaveLayers', range(3, 6)),
-            'contrastThreshold': hp.uniform('contrastThreshold', 0.001, 0.1),
-            'edgeThreshold': hp.uniform('edgeThreshold', 7, 14),
-            'sigma': hp.uniform('sigma', 0.75, 2.5),
+            'contrastThreshold': hp.uniform('contrastThreshold', 0.005, 0.15),
+            'edgeThreshold': hp.uniform('edgeThreshold', 10, 15),
+            'sigma': hp.uniform('sigma', 0.1, 2.1),
         },
         'BFMatcher': {
-            'normType': cv2.NORM_L1,
+            'normType': hp.choice('normType', [cv2.NORM_L2, cv2.NORM_L1]),
             'crossCheck': False, # can only be False for knnMatch
         },
-        'ratioThreshold': hp.uniform('ratioThreshold', 0.25, 0.65),
+        'ratioThreshold': hp.uniform('ratioThreshold', 0.3, 0.6),
         'RANSAC': {
-            'ransacReprojThreshold': hp.uniform('ransacReprojThreshold', 3, 8),
-            'maxIters': hp.choice('maxIters', range(1000, 2001, 100)),
-            'confidence': hp.uniform('confidence', 0.75, 0.99),
+            'ransacReprojThreshold': hp.uniform('ransacReprojThreshold', 2.5, 7.5),
+            'maxIters': hp.choice('maxIters', range(1000, 1501, 100)),
+            'confidence': hp.uniform('confidence', 0.85, 0.98),
         }
     }
 
@@ -146,13 +126,14 @@ try:
         # accuracy 85.0%, loss 10
         # params = {'BFMatcher': {'crossCheck': False, 'normType': 2}, 'RANSAC': {'confidence': 0.8661380647700954, 'maxIters': 1200, 'ransacReprojThreshold': 5.433288470918298}, 'ratioThreshold': 0.48551688245254115, 'sift': {'contrastThreshold': 0.01966890925119041, 'edgeThreshold': 12.850484601282218, 'nOctaveLayers': 4, 'nfeatures': 1700, 'sigma': 1.8972781658650877}}
 
-    test_dataset = all_no_rotation_images_and_features + all_rotation_images_and_features
+    # test_dataset = all_no_rotation_images_and_features + all_rotation_images_and_features
+    test_dataset = all_rotation_images_and_features
     trials = Trials()
     fmin(
         fn=objective_false_res,
         space=param_space,
         algo=tpe.suggest,
-        max_evals=1000,
+        max_evals=500,
         trials=trials
     )
 
@@ -168,7 +149,7 @@ try:
         exit()
 
     test_dataset = all_no_rotation_images_and_features + all_rotation_images_and_features
-    main_process_for_marker_test(test_dataset, all_training_data, best_params)
+    main_process_for_marker(test_dataset, all_training_data, best_params)
 except Exception as e:
     print(RED, 'Unknown error occurred:', NORMAL, traceback.format_exc())
     exit()
