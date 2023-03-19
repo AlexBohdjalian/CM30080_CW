@@ -114,6 +114,25 @@ try:
             'confidence': hp.uniform('confidence', 0.85, 0.98),
         }
     }
+    param_space = {
+        'BFMatcher': {
+            'crossCheck': False,
+            'normType': 2
+        },
+        'RANSAC': {
+            'confidence': hp.uniform('confidence', 0.90, 0.99),
+            'maxIters': hp.choice('maxIters', range(1500, 2001, 100)),
+            'ransacReprojThreshold': hp.uniform('ransacReprojThreshold', 3, 7),
+        },
+        'ratioThreshold': hp.uniform('ratioThreshold', 0.35, 0.45),
+        'sift': {
+            'contrastThreshold': hp.uniform('contrastThreshold', 0.003, 0.9),
+            'edgeThreshold': hp.uniform('edgeThreshold', 10, 13),
+            'nOctaveLayers': hp.choice('nOctaveLayers', range(3, 6)),
+            'nfeatures': hp.choice('nfeatures', range(1800, 2201, 100)),
+            'sigma': hp.uniform('sigma', 1.5, 2.2),
+        }
+    }
 
     # Best parameters, without geometric homography stuff:
         # accuracy 97.5%
@@ -123,8 +142,6 @@ try:
         # params = {'BFMatcher': {'crossCheck': False, 'normType': 2}, 'RANSAC': {'confidence': 0.9630012856644677, 'maxIters': 1500, 'ransacReprojThreshold': 5.316510881843703}, 'ratioThreshold': 0.4026570872420355, 'sift': {'contrastThreshold': 0.006016864707454455, 'edgeThreshold': 11.771432535526955, 'nOctaveLayers': 4, 'nfeatures': 2000, 'sigma': 1.8086914201280728}}
         # accuracy 82.5%, loss 8
         # params = {'BFMatcher': {'crossCheck': False, 'normType': 2}, 'RANSAC': {'confidence': 0.9046460355608786, 'maxIters': 1250, 'ransacReprojThreshold': 3.6582628257928227}, 'ratioThreshold': 0.4328757119687792, 'sift': {'contrastThreshold': 0.011965469851854161, 'edgeThreshold': 14.056885732766037, 'nOctaveLayers': 5, 'nfeatures': 1800, 'sigma': 1.7364978622695921}}
-        # accuracy 85.0%, loss 10
-        # params = {'BFMatcher': {'crossCheck': False, 'normType': 2}, 'RANSAC': {'confidence': 0.8661380647700954, 'maxIters': 1200, 'ransacReprojThreshold': 5.433288470918298}, 'ratioThreshold': 0.48551688245254115, 'sift': {'contrastThreshold': 0.01966890925119041, 'edgeThreshold': 12.850484601282218, 'nOctaveLayers': 4, 'nfeatures': 1700, 'sigma': 1.8972781658650877}}
 
     # test_dataset = all_no_rotation_images_and_features + all_rotation_images_and_features
     test_dataset = all_rotation_images_and_features

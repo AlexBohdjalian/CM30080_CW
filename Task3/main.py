@@ -91,18 +91,12 @@ def main_process_for_marker(marker_test_dataset, training_dataset, params, show_
         exit()
 
 
-
 def feature_detection_hyperopt(sift, bf, query_image, all_training_data_kp_desc, params):
     query_kp, query_desc = sift.detectAndCompute(query_image, None)
 
     found_features = []
     for feature_path, current_kp, current_desc in all_training_data_kp_desc:
-        try:
-            matches = bf.knnMatch(query_desc, current_desc, k=2)
-        except Exception as e:
-            print(query_desc, current_desc)
-            print(e)
-            exit()
+        matches = bf.knnMatch(query_desc, current_desc, k=2)
 
         # Get the best matches within a threshold distance
         good_matches = []
@@ -117,7 +111,7 @@ def feature_detection_hyperopt(sift, bf, query_image, all_training_data_kp_desc,
             dst_pts = np.float32([current_kp[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
 
             # Find homography using RANSAC and remove outliers
-            M, mask = cv2.findHomography(
+            _, mask = cv2.findHomography(
                 src_pts,
                 dst_pts,
                 cv2.RANSAC,
