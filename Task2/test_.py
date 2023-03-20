@@ -6,9 +6,9 @@ import math
 import random
 import os
     
-test_folder = '/media/idmi/DISSERTATN/CComputer Vision/Task2Dataset/TestWithoutRotations/images/'
-test_labels = '/media/idmi/DISSERTATN/CComputer Vision/Task2Dataset/TestWithoutRotations/annotations/'
-train_folder='/media/idmi/DISSERTATN/CComputer Vision/Task2Dataset/Training/png/'
+test_folder = 'Task2Dataset/TestWithoutRotations/images/'
+test_labels = 'Task2Dataset/TestWithoutRotations/annotations/'
+train_folder='Task2Dataset/Training/png/'
 
 # get object names
 object_names = os.listdir(train_folder)
