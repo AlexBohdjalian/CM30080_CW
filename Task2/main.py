@@ -1,6 +1,12 @@
 # some imports
 
-
+import cv2
+import os
+import numpy as np
+import math
+import random
+import os
+    
 test_folder = 'Task2Dataset/TestWithoutRotations/images/'
 test_labels = 'Task2Dataset/TestWithoutRotations/annotations/'
 train_folder='Task2Dataset/Training/png/'
@@ -20,7 +26,9 @@ train_files = os.listdir(train_folder)
 
 
 
-def training_process(training_data):
+
+
+def training_process():
     for target_object in train_files:
         print('--------------------',target_object)
         #if target_object != '002-bike.png':
@@ -114,3 +122,7 @@ def training_process(training_data):
 def feature_detection(image_path):
     print('NOT IMPLEMENTED')
     raise Exception('Function not implemented')
+
+    
+    
+training_process()
