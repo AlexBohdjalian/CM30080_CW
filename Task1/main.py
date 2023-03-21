@@ -50,18 +50,19 @@ def get_vector_from_line(line, intersection):
 
 
 def get_lines_gradients(lines):
-    # Find gradient of lines in degrees to handle vertical lines
-    gradients = []
+    direction_vectors = []
     for line in lines:
         x1, y1, x2, y2 = line[0]
-        if x2 == x1:
-            gradient = np.pi / 2
-        else:
-            gradient = np.arctan((y2-y1)/(x2-x1))
+        dx, dy = x2 - x1, y2 - y1
+        magnitude = np.sqrt(dx * dx + dy * dy)
 
-        gradients.append([gradient])
+        # Make sure the direction vector points to the positive x-axis
+        if dx < 0 or (dx == 0 and dy < 0):
+            dx, dy = -dx, -dy
 
-    return gradients
+        direction_vectors.append([dx / magnitude, dy / magnitude])
+
+    return direction_vectors
 
 
 def determine_angles(results):
