@@ -22,7 +22,7 @@ def generate_test_data(n_images, folder):
 
             # Define line properties
             line_length = np.random.randint(60, 150)
-            line_thickness = 1
+            line_thickness = np.random.randint(1, 3)
             line_color = (255, 255, 255)
 
             # Generate a random start point that is within the image bounds
