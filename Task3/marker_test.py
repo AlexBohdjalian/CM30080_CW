@@ -1,6 +1,6 @@
 import traceback
 
-from main import main_process_for_marker, read_test_dataset, read_training_dataset, draw_text
+from main import main_process_for_marker, read_test_dataset, read_training_dataset
 
 
 RED = '\u001b[31m'
@@ -13,19 +13,21 @@ if __name__ == '__main__':
             'normType': 2
         },
         'RANSAC': {
-            'confidence': 0.9630012856644677,
-            'maxIters': 1500,
-            'ransacReprojThreshold': 5.316510881843703
+            'confidence': 0.9564838900729838,
+            'maxIters': 1600,
+            'ransacReprojThreshold': 5.53440270211734
         },
-        'ratioThreshold': 0.4026570872420355,
+        'min_good_matches': 4,
+        'ratioThreshold': 0.42352058295191136,
         'sift': {
-            'contrastThreshold': 0.006016864707454455,
-            'edgeThreshold': 11.771432535526955,
+            'contrastThreshold': 0.005457729696636313,
+            'edgeThreshold': 11.188051836654086,
             'nOctaveLayers': 4,
-            'nfeatures': 2000,
-            'sigma': 1.8086914201280728
+            'nfeatures': 2100,
+            'sigma': 1.8708988402771627
         }
     }
+    # Tested to have an accuracy of 85% with a total of 0 false-positives and 9 false negatives all 40 images.
 
     # NOTE: For marker, we have assumed that the additional data you have is in the same format as the data given.
     # Please replace the below three directories with your own and then execute this file.
@@ -36,11 +38,16 @@ if __name__ == '__main__':
     try:
         all_no_rotation_images_and_features = read_test_dataset(no_rotation_images_dir, '.txt', read_colour=True)
         all_rotation_images_and_features = read_test_dataset(rotated_images_dir, '.csv', read_colour=True)
-        all_training_data = read_training_dataset(training_images_dir)
+        all_training_images_and_paths = read_training_dataset(training_images_dir)
         print()
     except Exception as e:
         print(RED, 'Error while reading datasets:', NORMAL, traceback.format_exc())
         exit()
 
-    test_dataset = all_no_rotation_images_and_features + all_rotation_images_and_features
-    main_process_for_marker(test_dataset, all_training_data, params, show_output=True)
+    test_images_and_features = all_no_rotation_images_and_features + all_rotation_images_and_features
+    main_process_for_marker(
+        test_images_and_features,
+        all_training_images_and_paths,
+        params,
+        show_output=False # TODO: set this to true before submitting
+    )

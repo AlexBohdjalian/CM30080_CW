@@ -4,6 +4,7 @@ import cv2
 from hyperopt import STATUS_FAIL, STATUS_OK, Trials, fmin, hp, tpe
 from main import feature_detection_hyperopt, main_process_for_marker, read_test_dataset, read_training_dataset
 
+
 RED = '\u001b[31m'
 GREEN = '\u001b[32m'
 NORMAL = '\u001b[0m'
@@ -15,7 +16,7 @@ task3_training_data_dir = 'Task3/Task2Dataset/Training/'
 try:
     all_no_rotation_images_and_features = read_test_dataset(task3_no_rotation_images_dir, '.txt')
     all_rotation_images_and_features = read_test_dataset(task3_rotated_images_dir, '.csv')
-    all_training_data = read_training_dataset(task3_training_data_dir)
+    all_training_images_and_paths = read_training_dataset(task3_training_data_dir)
     print()
 except Exception as e:
     print(RED, 'Error while reading datasets:', NORMAL, traceback.format_exc())
@@ -27,16 +28,16 @@ def objective_false_res(param):
 
     # Pre-process all the training images one time as kp and desc will be the same
     all_training_data_kp_desc = []
-    for current_image, current_image_path in all_training_data:
+    for current_image, current_image_path in all_training_images_and_paths:
         current_kp, current_desc = sift.detectAndCompute(current_image, None)
         if current_desc is None:
             return {'status': STATUS_FAIL}
         all_training_data_kp_desc.append((current_image_path, current_kp, current_desc))
 
     correct = 0
-    false_results = 0
-    for image, actual_features in test_dataset:
-        predicted_features = feature_detection_hyperopt(sift, bf, image, all_training_data_kp_desc, param)
+    false_results_count = 0
+    for gray_image, actual_features in test_dataset:
+        predicted_features = feature_detection_hyperopt(sift, bf, gray_image, all_training_data_kp_desc, param)
 
         predicted_feature_names_set = set([f[0] for f in predicted_features])
         actual_feature_names_set = set([f[0] for f in actual_features])
@@ -44,14 +45,14 @@ def objective_false_res(param):
             correct += 1
             continue
 
-        false_results += len(predicted_feature_names_set.difference(actual_feature_names_set))
-        false_results += len(actual_feature_names_set.difference(predicted_feature_names_set))
+        false_results_count += len(predicted_feature_names_set.difference(actual_feature_names_set))
+        false_results_count += len(actual_feature_names_set.difference(predicted_feature_names_set))
 
     accuracy = correct / len(test_dataset)
-    if accuracy >= 0.8:
-        print(f'Current Accuracy: {accuracy}, loss: {false_results}')
+    if accuracy > 0.85 or false_results_count < 9:
+        print(f'Current Accuracy: {accuracy}, loss: {false_results_count}')
         print('Current Params: ' + str(param))
-    return {'loss': false_results, 'status': STATUS_OK, 'model': param}
+    return {'loss': false_results_count, 'status': STATUS_OK, 'model': param}
 
 try:
     # First param_space:
@@ -75,76 +76,28 @@ try:
     #     }
     # }
     # Refined:
-    # param_space = {
-    #     'sift': {
-    #         'nfeatures': hp.choice('nfeatures', range(1500, 2501, 100)),
-    #         'nOctaveLayers': hp.choice('nOctaveLayers', range(3, 6)),
-    #         'contrastThreshold': hp.uniform('contrastThreshold', 0.005, 0.015),
-    #         'edgeThreshold': hp.uniform('edgeThreshold', 10, 20),
-    #         'sigma': hp.uniform('sigma', 1.7, 2.2),
-    #     },
-    #     'BFMatcher': {
-    #         'normType': hp.choice('normType', [cv2.NORM_L2, cv2.NORM_L1]),
-    #         'crossCheck': hp.choice('crossCheck', [False]), # can only be False for knnMatch
-    #     },
-    #     'ratioThreshold': hp.uniform('ratioThreshold', 0.4, 0.6),
-    #     'RANSAC': {
-    #         'ransacReprojThreshold': hp.uniform('ransacReprojThreshold', 3, 7),
-    #         'maxIters': hp.choice('maxIters', range(1000, 2001, 250)),
-    #         'confidence': hp.uniform('confidence', 0.9, 0.98),
-    #     }
-    # }
-    # Refined again:
-    param_space = {
-        'sift': {
-            'nfeatures': hp.choice('nfeatures', range(1700, 2301, 100)),
-            'nOctaveLayers': hp.choice('nOctaveLayers', range(3, 6)),
-            'contrastThreshold': hp.uniform('contrastThreshold', 0.005, 0.15),
-            'edgeThreshold': hp.uniform('edgeThreshold', 10, 15),
-            'sigma': hp.uniform('sigma', 0.1, 2.1),
-        },
-        'BFMatcher': {
-            'normType': hp.choice('normType', [cv2.NORM_L2, cv2.NORM_L1]),
-            'crossCheck': False, # can only be False for knnMatch
-        },
-        'ratioThreshold': hp.uniform('ratioThreshold', 0.3, 0.6),
-        'RANSAC': {
-            'ransacReprojThreshold': hp.uniform('ransacReprojThreshold', 2.5, 7.5),
-            'maxIters': hp.choice('maxIters', range(1000, 1501, 100)),
-            'confidence': hp.uniform('confidence', 0.85, 0.98),
-        }
-    }
     param_space = {
         'BFMatcher': {
             'crossCheck': False,
             'normType': 2
         },
         'RANSAC': {
-            'confidence': hp.uniform('confidence', 0.90, 0.99),
-            'maxIters': hp.choice('maxIters', range(1500, 2001, 100)),
-            'ransacReprojThreshold': hp.uniform('ransacReprojThreshold', 3, 7),
+            'confidence': hp.uniform('confidence', 0.955, 0.97), # 0.9623804736073822 = mean of [0.9611536048413046, 0.962462452378438, 0.962524362602404]
+            'maxIters': hp.choice('maxIters', range(1400, 1601, 50)), # 1500 = mode of [1600, 1400, 1500]
+            'ransacReprojThreshold': hp.uniform('ransacReprojThreshold', 5.4, 5.6), # 5.488956712586637 = mean of [5.401179963009146, 5.5846992491264364, 5.478990924625329]
         },
-        'ratioThreshold': hp.uniform('ratioThreshold', 0.35, 0.45),
+        'min_good_matches': 4,
+        'ratioThreshold': hp.uniform('ratioThreshold', 0.41, 0.4265),# 0.41876768654455434 = mean of [0.4166608892456559, 0.4191789633890037, 0.42046320699900236]
         'sift': {
-            'contrastThreshold': hp.uniform('contrastThreshold', 0.003, 0.9),
-            'edgeThreshold': hp.uniform('edgeThreshold', 10, 13),
-            'nOctaveLayers': hp.choice('nOctaveLayers', range(3, 6)),
-            'nfeatures': hp.choice('nfeatures', range(1800, 2201, 100)),
-            'sigma': hp.uniform('sigma', 1.5, 2.2),
+            'nfeatures': 2100,
+            'nOctaveLayers': 4,
+            'contrastThreshold': hp.uniform('contrastThreshold', 0.005, 0.006), # 0.00553 = mean of [0.005509519406815533, 0.005544726718043102, 0.0055376019160449244]
+            'edgeThreshold': hp.uniform('edgeThreshold', 11, 13), # 12.332041427222738 = mean of [11.848464359070503, 12.059998508426833, 12.087660416130879]
+            'sigma': hp.uniform('sigma', 1.7, 1.9), # 1.808201349714444 = mean of [1.8028239914595838, 1.811168377720828, 1.812710677962918]
         }
     }
 
-    # Best parameters, without geometric homography stuff:
-        # accuracy 97.5%
-        # params = {'BFMatcher': {'normType': 4,'crossCheck': True},'matchThreshold': 46.8732367930094, 'sift': {'nfeatures': 1000,'nOctaveLayers': 1,'contrastThreshold': 0.018249699973052022,'edgeThreshold': 15.286233923400257,'sigma': 1.9143801565688459}}
-    # With geometric removal of outliers:
-        # accuracy 85.0%, loss 10
-        # params = {'BFMatcher': {'crossCheck': False, 'normType': 2}, 'RANSAC': {'confidence': 0.9630012856644677, 'maxIters': 1500, 'ransacReprojThreshold': 5.316510881843703}, 'ratioThreshold': 0.4026570872420355, 'sift': {'contrastThreshold': 0.006016864707454455, 'edgeThreshold': 11.771432535526955, 'nOctaveLayers': 4, 'nfeatures': 2000, 'sigma': 1.8086914201280728}}
-        # accuracy 82.5%, loss 8
-        # params = {'BFMatcher': {'crossCheck': False, 'normType': 2}, 'RANSAC': {'confidence': 0.9046460355608786, 'maxIters': 1250, 'ransacReprojThreshold': 3.6582628257928227}, 'ratioThreshold': 0.4328757119687792, 'sift': {'contrastThreshold': 0.011965469851854161, 'edgeThreshold': 14.056885732766037, 'nOctaveLayers': 5, 'nfeatures': 1800, 'sigma': 1.7364978622695921}}
-
-    # test_dataset = all_no_rotation_images_and_features + all_rotation_images_and_features
-    test_dataset = all_rotation_images_and_features
+    test_dataset = all_no_rotation_images_and_features + all_rotation_images_and_features
     trials = Trials()
     fmin(
         fn=objective_false_res,
@@ -158,15 +111,15 @@ try:
     print('Best parameters:', best_params)
     print('Evaluating best parameters for accuracy...')
     try:
-        all_no_rotation_images_and_features = read_test_dataset(task3_no_rotation_images_dir, '.txt', cv2.IMREAD_COLOR)
-        all_rotation_images_and_features = read_test_dataset(task3_rotated_images_dir, '.csv', cv2.IMREAD_COLOR)
-        all_training_data = read_training_dataset(task3_training_data_dir)
+        # Re-read these in colour
+        all_no_rotation_images_and_features = read_test_dataset(task3_no_rotation_images_dir, '.txt', read_colour=True)
+        all_rotation_images_and_features = read_test_dataset(task3_rotated_images_dir, '.csv', read_colour=True)
     except Exception as e:
         print(RED, 'Error while reading datasets:', NORMAL, traceback.format_exc())
         exit()
 
     test_dataset = all_no_rotation_images_and_features + all_rotation_images_and_features
-    main_process_for_marker(test_dataset, all_training_data, best_params)
+    main_process_for_marker(test_dataset, all_training_images_and_paths, best_params)
 except Exception as e:
     print(RED, 'Unknown error occurred:', NORMAL, traceback.format_exc())
     exit()
