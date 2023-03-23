@@ -31,7 +31,7 @@ def main_process_for_marker(test_images_and_features, training_images_and_paths,
         false_neg = 0
         times = []
         # For each image, get the predicted features and check how accurate the are
-        for i, gray_query_image, colour_query_image, actual_features in enumerate(test_images_and_features):
+        for i, (gray_query_image, colour_query_image, actual_features) in enumerate(test_images_and_features):
             print(f'Test Image {i} ...', end='')
             # Processed image is the image which has been drawn on to indicate bounding boxes and classes
             predicted_features, processed_image, run_time = feature_detection_marker(

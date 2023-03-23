@@ -75,7 +75,7 @@ try:
     #         'confidence': hp.uniform('confidence', 0.90, 1.0),
     #     }
     # }
-    # Refined:
+    # Refined based on best results from above param_space:
     param_space = {
         'BFMatcher': {
             'crossCheck': False,
