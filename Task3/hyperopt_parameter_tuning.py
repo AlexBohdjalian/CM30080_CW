@@ -78,6 +78,7 @@ try:
     # Refined based on best results from above param_space:
     param_space = {
         'BFMatcher': {
+            # TODO: experiment with using knnmatch and match. use if statement to determine using this param
             'crossCheck': False,
             'normType': 2
         },
