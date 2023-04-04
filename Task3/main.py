@@ -132,8 +132,13 @@ def feature_detection(training_data, query_data, params, show_output=True):
 
     # compute keypoints and descriptors for training data
     with ThreadPoolExecutor(max_workers=8) as executor1:
-        futures_train = [executor1.submit(sift_detect_and_compute, params['SIFT'], train_image, None, feature) \
-                         for train_image, feature in training_data]
+        futures_train = [executor1.submit(
+            sift_detect_and_compute,
+            params['SIFT'],
+            train_image,
+            None,
+            feature
+        ) for train_image, feature in training_data]
 
     # collect threading futures and filter out any images that have no descriptors
     all_training_data_kp_desc = []
@@ -146,8 +151,13 @@ def feature_detection(training_data, query_data, params, show_output=True):
 
     # segment query images into individual icons and computer keypoints and descriptors
     with ThreadPoolExecutor(max_workers=8) as executor3:
-        futures_query = [executor3.submit(segment_detect_and_compute, params['SIFT'], query_image, params['resizeQuery'], \
-                                          (path, actual_features)) for path, query_image, actual_features in query_data]
+        futures_query = [executor3.submit(
+            segment_detect_and_compute,
+            params['SIFT'],
+            query_image,
+            params['resizeQuery'],
+            (path, actual_features)
+        ) for path, query_image, actual_features in query_data]
 
     total_results = 0
     correct_results = 0
@@ -189,7 +199,8 @@ def feature_detection(training_data, query_data, params, show_output=True):
 
                 # it is considered a match if there are than 'inlierScore' inliers
                 if sum(matches_mask) > params['inlierScore']:
-                    draw_bounding_box(query_image, bounding_box, feature_name)
+                    if show_output:
+                        draw_bounding_box(query_image, bounding_box, feature_name)
                     predicted_features.append(feature_name)
                     correct_results += 1
             total_results += 1
@@ -198,16 +209,20 @@ def feature_detection(training_data, query_data, params, show_output=True):
         actual_feature_names_set = set([f[0] for f in actual_features])
 
         # calculate accuracy
-        correct_predictions = len(predicted_feature_names_set.intersection(actual_feature_names_set))
+        correct_predictions = predicted_feature_names_set.intersection(actual_feature_names_set)
         total_features = len(actual_feature_names_set)
-        accuracy = correct_predictions / total_features
-        print(f"Accuracy ({path}): {accuracy}")
 
         # calculate false positives and false negatives
         false_pos_diff = predicted_feature_names_set.difference(actual_feature_names_set)
         false_neg_diff = actual_feature_names_set.difference(predicted_feature_names_set)
         false_positives += list(false_pos_diff)
         false_negatives += list(false_neg_diff)
+
+        accuracy = round(len(correct_predictions) / total_features * 100, 1)
+        if accuracy == 100 and len(false_positives) == 0:
+            print(GREEN, f"{path} -> Accuracy: {accuracy}%", NORMAL)
+        else:
+            print(RED, f"{path} -> Accuracy: {accuracy}%, True Positives: {correct_predictions}, False Positives: {false_pos_diff}, False Negatives {false_neg_diff}", NORMAL)
 
         if show_output:
             cv2.imshow('image', query_image)
@@ -216,10 +231,10 @@ def feature_detection(training_data, query_data, params, show_output=True):
     end_time = time.time()
 
     print('\nSummary of results:')
-    print(f'False positives ({len(false_positives)}): {Counter(false_positives)}')
-    print(f'False negatives ({len(false_negatives)}):, {Counter(false_negatives)}')
-    print(f'Final accuracy: {round(correct_results/total_results, 2)}')
-    print(f'Avg. time per query image: {round((end_time - start_time) / len(query_data), 2)} seconds')
+    print(f'False positives: {Counter(false_positives).most_common()}')
+    print(f'False negatives: {Counter(false_negatives).most_common()}')
+    print(f'Final accuracy: {round(correct_results/total_results * 100, 2)}%')
+    print(f'Avg. time per query image: {round((end_time - start_time) / len(query_data), 3)} seconds')
 
     if show_output:
         cv2.destroyAllWindows()
@@ -314,7 +329,8 @@ def main_process_for_marker(test_images_and_features, training_images_and_paths,
         print(f'Total false results: {total_false_results}')
         print(f'Average runtime per image: {round(np.mean(times), 3)}ms')
         print(BLUE, f'Note: Total false results is the total number of false-positives and false-negatives for all test images', NORMAL)
-        print(BLUE, f'Note: The average runtime is for the feature matching process and does not include any additional processing done to check accuracy, display the results, etc.', NORMAL)
+        print(BLUE, f'Note: The average runtime is for the feature matching process and does not include any additional processing done '
+            + 'to check accuracy, display the results, etc.', NORMAL)
     except:
         print(RED, 'Unknown error occurred:', NORMAL, traceback.format_exc())
         exit()
