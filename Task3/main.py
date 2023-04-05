@@ -225,6 +225,34 @@ def feature_detection(training_data, query_data, params, show_output=True):
         cv2.destroyAllWindows()
 
 
+def feature_detection_hyperopt(bf, kp_desc_query, current_kp, current_desc, feature_name, params):
+
+    for (query_kp, query_desc), _ in kp_desc_query:
+
+        matches = bf.knnMatch(query_desc, current_desc, k=2)
+
+        good_matches = []
+        for match in matches:
+            if len(match) == 2:
+                m, n = match
+                if m.distance < params['ratioThreshold'] * n.distance:
+                    good_matches.append(m)
+
+        if len(good_matches) < 4:
+            continue
+
+        src_pts = np.float32([query_kp[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+        dst_pts = np.float32([current_kp[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+
+        _, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, **params['RANSAC'])
+        matches_mask = mask.ravel().tolist()
+
+        if sum(matches_mask) > params['inlierScore']:
+            return feature_name
+
+    return
+
+
 def main_process_for_marker(test_images_and_features, training_images_and_paths, params, show_output=False):
     try:
         # Create the sift and matcher objects once at the start for efficiency
@@ -318,42 +346,6 @@ def main_process_for_marker(test_images_and_features, training_images_and_paths,
     except:
         print(RED, 'Unknown error occurred:', NORMAL, traceback.format_exc())
         exit()
-
-
-def feature_detection_hyperopt(sift, bf, query_image, all_training_data_kp_desc, params):
-    """" An optimised version of feature detection that is used for hyperparameter optimisation """
-    query_kp, query_desc = sift.detectAndCompute(query_image, None)
-
-    found_features = []
-    for feature_path, current_kp, current_desc in all_training_data_kp_desc:
-        # Get the best matches using ratio test
-        good_matches = []
-        for match in bf.knnMatch(query_desc, current_desc, k=2):
-            if len(match) == 2:
-                m, n = match
-                if m.distance < params['ratioThreshold'] * n.distance:
-                    good_matches.append(m)
-
-        # If there is a sufficient number of matches
-        if len(good_matches) >= params['min_good_matches']:
-            src_pts = np.float32([query_kp[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
-            dst_pts = np.float32([current_kp[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
-
-            # Find homography using RANSAC and remove outliers
-            _, mask = cv2.findHomography(
-                src_pts,
-                dst_pts,
-                cv2.RANSAC,
-                **params['RANSAC'],
-            )
-            matches_mask = mask.ravel().tolist()
-            inlier_matches = [good_matches[i] for i, val in enumerate(matches_mask) if val]
-
-            if len(inlier_matches) > 0:
-                feature_name = feature_name_from_path(feature_path)
-                found_features.append((feature_name, (), ()))
-
-    return found_features
 
 
 def feature_detection_marker(sift, bf, gray_query_image, colour_query_image, all_training_data, params, show_output=False):
