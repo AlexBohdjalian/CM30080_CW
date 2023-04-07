@@ -4,8 +4,25 @@ Computer Vision Group CW
 ### Task1: Measuring the angle
 TODO: Describe to examiner how the code works and how to use it on their own data
 
-### Task2: 
-TODO: Describe to examiner how the code works and how to use it on their own data
+### Task2: Intensity-based filter matching
+
+We implement Sum Squared Difference for intensity based filter matching, and improve efficiency using gaussian pyramids for the test images and train images, progressively going up the pyramid and cropping the search area to be around the corresponding most likely candidate location for the query object in the previous, lower resolution pyramid layer.
+
+Hyperparameters were searched for manually.
+
+`main.py` is an all-in-one file. 
+At the top of the code are lines defining: 
+  - where test images are located
+  - where test annotations are located
+  - where training images are located
+  - where the training image gaussian pyramids should be located 
+
+It creates predicated images with bounding boxes and captions in the base directory.
+
+The `train()` function takes in the location of training images (as a global variable, it is not passed) and creates a gaussian pyramid for each image and saves them to appropriate sub-directories.
+
+The `test()` function reads these files and the test images and annotations and runs our SSD-gaussian pyramid intensity based filter matching algorithm and checks the accuracy while saving the predicated images as wiht bounding boxes and object labels.
+
 
 ### Task3: SIFT Feature Matching
 For this task, we have implemented the SIFT algorithm for feature matching with the given datasets. There are four main files:
