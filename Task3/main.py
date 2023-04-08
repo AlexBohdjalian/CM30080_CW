@@ -7,7 +7,7 @@ from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 
 cv2.setRNGSeed(0)
-
+n_workers = cv2.getNumberOfCPUs()
 
 # Define constants
 BLUE = '\u001b[34m'
@@ -24,16 +24,16 @@ image_info = (
 def filter_covered_boxes(bounding_boxes):
     filtered_boxes = []
 
-    for i1, (x1, y1, x2, y2) in enumerate(bounding_boxes):
+    for i1, ((x1, y1, x2, y2), bbx1) in enumerate(bounding_boxes):
         larger = True
-        for i2, (x3, y3, x4, y4) in enumerate(bounding_boxes):
+        for i2, ((x3, y3, x4, y4), bbx2) in enumerate(bounding_boxes):
             if i1 == i2:
                 continue
             if x3 <= x1 and x4 >= x2 and y3 <= y1 and y4 >= y2:
                 larger = False
                 break
         if larger:
-            filtered_boxes.append((x1, y1, x2, y2))
+            filtered_boxes.append(((x1, y1, x2, y2), bbx1))
     return filtered_boxes
 
 
@@ -49,8 +49,24 @@ def add_border(x_min, y_min, x_max, y_max, width, height, border=1):
     return x_min, y_min, x_max, y_max
 
 
-def get_bounding_boxes(image, min_area=500):
-    scale = 10
+def get_orientated_bounding_box(contour, scale=10):
+    min_rect = cv2.minAreaRect(contour)
+    (center, size, angle) = min_rect
+
+    # Scale the min_rect back to the original image size
+    center = tuple(np.array(center) / scale)
+    size = tuple(np.array(size) / scale)
+
+    # Create a new min_rect with the scaled values
+    scaled_min_rect = (center, size, angle)
+
+    # Convert the min_rect to a 4-point bounding box
+    box = cv2.boxPoints(scaled_min_rect)
+    box = np.int0(box)
+    return box
+
+
+def get_bounding_boxes(image, scale=10, min_area=500):
     bounding_boxes = []
     width, height = image.shape[:2]
     # Resize the image by the scaling factor as it improves the accuracy of the contour detection
@@ -70,7 +86,7 @@ def get_bounding_boxes(image, min_area=500):
         if w * h < min_area:
             continue
         x_min, y_min, x_max, y_max = add_border(x, y, x+w, y+h, width, height)
-        bounding_boxes.append((x_min, y_min, x_max, y_max))
+        bounding_boxes.append(((x_min, y_min, x_max, y_max), get_orientated_bounding_box(c)))
     return bounding_boxes
 
 
@@ -81,7 +97,7 @@ def segment_icons(image):
     # filter out boxes that are entirely covered by a larger bounding box
     bounding_boxes = filter_covered_boxes(bounding_boxes)
 
-    for x_min, y_min, x_max, y_max in bounding_boxes:
+    for (x_min, y_min, x_max, y_max), bbx in bounding_boxes:
         image_segment = image[y_min:y_max, x_min:x_max].copy()
         border = 5
         padded_image = cv2.copyMakeBorder(
@@ -93,7 +109,7 @@ def segment_icons(image):
             borderType=cv2.BORDER_CONSTANT,
             value=(255, 255, 255),
         )
-        image_segments.append((padded_image, ((x_min, y_min), (x_max, y_max))))
+        image_segments.append((padded_image, bbx))
     return image_segments
 
 
@@ -113,15 +129,17 @@ def segment_detect_and_compute(sift_params, image, resize, return_vars=None):
     for image, bounding_box in segments:
         kp, desc, _ = sift_detect_and_compute(sift_params, image, resize)
         if desc is not None:
-            segments_kp_desc.append(((kp, desc), bounding_box))
+            segments_kp_desc.append(((kp, desc), image, bounding_box))
     return segments_kp_desc, return_vars
 
 
 def draw_bounding_box(image, bounding_box, text, colour=(0, 255, 0)):
     # draw icons bounding box and predicted name
-    cv2.rectangle(image, bounding_box[0], bounding_box[1], colour, 2)
+    cv2.drawContours(image, [bounding_box], 0, colour, 2)
+    # Find the highest point (minimum y-coordinate)
+    highest_point = min(bounding_box, key=lambda pt: pt[1])
     font = cv2.FONT_HERSHEY_SIMPLEX
-    text_position = (bounding_box[0][0], bounding_box[0][1] - 5)
+    text_position = (highest_point[0], highest_point[1] - 5)
     cv2.putText(image, text, text_position, font, 0.5, colour, 1, cv2.LINE_AA)
 
 
@@ -131,7 +149,7 @@ def feature_detection(training_data, query_data, params, show_output=True):
     bf = cv2.BFMatcher(**params['BF'])
 
     # compute keypoints and descriptors for training data
-    with ThreadPoolExecutor(max_workers=8) as executor1:
+    with ThreadPoolExecutor(max_workers=n_workers) as executor1:
         futures_train = [executor1.submit(
             sift_detect_and_compute,
             params['SIFT'],
@@ -150,7 +168,7 @@ def feature_detection(training_data, query_data, params, show_output=True):
         all_training_data_kp_desc.append((feature, train_kp, train_desc))
 
     # segment query images into individual icons and computer keypoints and descriptors
-    with ThreadPoolExecutor(max_workers=8) as executor3:
+    with ThreadPoolExecutor(max_workers=n_workers) as executor3:
         futures_query = [executor3.submit(
             segment_detect_and_compute,
             params['SIFT'],
@@ -173,7 +191,7 @@ def feature_detection(training_data, query_data, params, show_output=True):
         query_image = cv2.imread(path)
 
         predicted_features = []
-        for (query_kp, query_desc), bounding_box in segments_kp_desc:
+        for (query_kp, query_desc), segment, bounding_box in segments_kp_desc:
             for feature_name, train_kp, train_desc in all_training_data_kp_desc:
                 matches = bf.knnMatch(query_desc, train_desc, k=2)
 
@@ -189,18 +207,27 @@ def feature_detection(training_data, query_data, params, show_output=True):
                 if len(good_matches) < 4:
                     continue
 
-                # extract source (query) and destination (train) keypoints coordinates from good matches
-                src_pts = np.float32([query_kp[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
-                dst_pts = np.float32([train_kp[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+                training_dir = 'Task2Dataset/Training/png'
 
-                # find homography matrix between source and destination points using RANSAC
-                _, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, **params['RANSAC'])
+                file_name = None
+                for file in os.listdir(training_dir):
+                    if feature_name in file:
+                        file_name = file
+                        break
+
+                # Extract source (query) and destination (train) keypoints coordinates from good matches
+                src_pts = np.float32([train_kp[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+                dst_pts = np.float32([query_kp[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+
+                # Find homography matrix between source and destination points using RANSAC
+                H, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, **params['RANSAC'])
                 matches_mask = mask.ravel().tolist()
 
-                # it is considered a match if there are than 'inlierScore' inliers
+                # Check if the match has more than 'inlierScore' inliers
                 if sum(matches_mask) > params['inlierScore']:
                     if show_output:
                         draw_bounding_box(query_image, bounding_box, feature_name)
+
                     predicted_features.append(feature_name)
                     correct_results += 1
             total_results += 1
@@ -240,11 +267,11 @@ def feature_detection(training_data, query_data, params, show_output=True):
         cv2.destroyAllWindows()
 
 
-def feature_detection_hyperopt(bf, kp_desc_query, current_kp, current_desc, feature_name, params):
+def feature_detection_hyperopt(bf, kp_desc_query, train_kp, train_desc, feature_name, params):
 
     for (query_kp, query_desc), _ in kp_desc_query:
 
-        matches = bf.knnMatch(query_desc, current_desc, k=2)
+        matches = bf.knnMatch(query_desc, train_desc, k=2)
 
         good_matches = []
         for match in matches:
@@ -256,8 +283,8 @@ def feature_detection_hyperopt(bf, kp_desc_query, current_kp, current_desc, feat
         if len(good_matches) < 4:
             continue
 
-        src_pts = np.float32([query_kp[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
-        dst_pts = np.float32([current_kp[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+        src_pts = np.float32([train_kp[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+        dst_pts = np.float32([query_kp[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
 
         _, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, **params['RANSAC'])
         matches_mask = mask.ravel().tolist()
