@@ -207,14 +207,6 @@ def feature_detection(training_data, query_data, params, show_output=True):
                 if len(good_matches) < 4:
                     continue
 
-                training_dir = 'Task2Dataset/Training/png'
-
-                file_name = None
-                for file in os.listdir(training_dir):
-                    if feature_name in file:
-                        file_name = file
-                        break
-
                 # Extract source (query) and destination (train) keypoints coordinates from good matches
                 src_pts = np.float32([train_kp[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
                 dst_pts = np.float32([query_kp[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
@@ -227,7 +219,6 @@ def feature_detection(training_data, query_data, params, show_output=True):
                 if sum(matches_mask) > params['inlierScore']:
                     if show_output:
                         draw_bounding_box(query_image, bounding_box, feature_name)
-
                     predicted_features.append(feature_name)
                     correct_results += 1
             total_results += 1
