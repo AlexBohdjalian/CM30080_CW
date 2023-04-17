@@ -145,6 +145,7 @@ def draw_bounding_box(image, bounding_box, text, colour=(0, 255, 0)):
 
 def feature_detection(training_data, query_data, params, show_output=True):
     start_time = time.time()
+    extra_time = 0
 
     bf = cv2.BFMatcher(**params['BF'])
 
@@ -212,13 +213,133 @@ def feature_detection(training_data, query_data, params, show_output=True):
                 dst_pts = np.float32([query_kp[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
 
                 # Find homography matrix between source and destination points using RANSAC
-                H, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, **params['RANSAC'])
+                _, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, **params['RANSAC'])
                 matches_mask = mask.ravel().tolist()
 
                 # Check if the match has more than 'inlierScore' inliers
                 if sum(matches_mask) > params['inlierScore']:
                     if show_output:
+                        extra_time -= time.time()
                         draw_bounding_box(query_image, bounding_box, feature_name)
+                        extra_time += time.time()
+                    predicted_features.append(feature_name)
+                    correct_results += 1
+            total_results += 1
+
+        predicted_feature_names_set = set(predicted_features)
+        actual_feature_names_set = set([f[0] for f in actual_features])
+
+        # calculate accuracy
+        correct_predictions = predicted_feature_names_set.intersection(actual_feature_names_set)
+
+        # calculate false positives and false negatives
+        extra_time -= time.time()
+        false_neg_diff = actual_feature_names_set.difference(predicted_feature_names_set)
+        false_negatives += list(false_neg_diff)
+        extra_time += time.time()
+
+        false_pos_diff = predicted_feature_names_set.difference(actual_feature_names_set)
+        false_positives += list(false_pos_diff)
+
+        accuracy = round(len(correct_predictions) / len(actual_feature_names_set) * 100, 1)
+        if accuracy == 100 and len(false_positives) == 0:
+            print(GREEN, f"{path} -> Accuracy: {accuracy}%", NORMAL)
+        else:
+            print(RED, f"{path} -> Accuracy: {accuracy}%, True Positives: {correct_predictions}, False Positives: {false_pos_diff}, False Negatives {false_neg_diff}", NORMAL)
+
+        if show_output:
+            extra_time -= time.time()
+            cv2.imshow('image', query_image)
+            cv2.waitKey(0)
+            extra_time += time.time()
+
+    end_time = time.time()
+    avg_time_per_image = round((end_time - start_time - extra_time) / len(query_data), 3)
+
+    print('\nSummary of results:')
+    print(f'False positives: {Counter(false_positives).most_common()}')
+    print(f'False negatives: {Counter(false_negatives).most_common()}')
+    print(f'Final accuracy: {round(correct_results/total_results * 100, 2)}%')
+    print(f'Avg. time per query image: {avg_time_per_image} seconds')
+
+    if show_output:
+        cv2.destroyAllWindows()
+
+
+def feature_detection_for_graphing(training_data, query_data, params):
+    start_time = time.time()
+
+    bf = cv2.BFMatcher(**params['BF'])
+
+    # compute keypoints and descriptors for training data
+    with ThreadPoolExecutor(max_workers=n_workers) as executor1:
+        futures_train = [executor1.submit(
+            sift_detect_and_compute,
+            params['SIFT'],
+            train_image,
+            None,
+            feature
+        ) for train_image, feature in training_data]
+
+    # collect threading futures and filter out any images that have no descriptors
+    all_training_data_kp_desc = []
+    for future in futures_train:
+        train_kp, train_desc, feature = future.result()
+        if train_desc is None:
+            print(f'No descriptors found for {feature}')
+            continue
+        all_training_data_kp_desc.append((feature, train_kp, train_desc))
+
+    # segment query images into individual icons and computer keypoints and descriptors
+    with ThreadPoolExecutor(max_workers=n_workers) as executor3:
+        futures_query = [executor3.submit(
+            segment_detect_and_compute,
+            params['SIFT'],
+            query_image,
+            params['resizeQuery'],
+            (path, actual_features)
+        ) for path, query_image, actual_features in query_data]
+
+    accuracies = []
+    total_results = 0
+    correct_results = 0
+    true_positives = 0
+    false_positives = []
+    false_negatives = []
+    # main loop to match query images to training data
+    for future in futures_query:
+        segments_kp_desc, (path, actual_features) = future.result()
+        if len(segments_kp_desc) == 0:
+            print(f'No descriptors found for {path}')
+            continue
+
+        predicted_features = []
+        for (query_kp, query_desc), _, _ in segments_kp_desc:
+            for feature_name, train_kp, train_desc in all_training_data_kp_desc:
+                matches = bf.knnMatch(query_desc, train_desc, k=2)
+
+                # filter out matches using Lowe's ratio test
+                good_matches = []
+                for match in matches:
+                    if len(match) == 2:
+                        m, n = match
+                        if m.distance < params['ratioThreshold'] * n.distance:
+                            good_matches.append(m)
+
+                # at least 4 matches are needed for homography
+                if len(good_matches) < 4:
+                    continue
+
+                # Extract source (query) and destination (train) keypoints coordinates from good matches
+                src_pts = np.float32([train_kp[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+                dst_pts = np.float32([query_kp[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+
+                # Find homography matrix between source and destination points using RANSAC
+                H, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, **params['RANSAC'])
+                matches_mask = mask.ravel().tolist()
+
+                # Check if the match has more than 'inlierScore' inliers
+                if sum(matches_mask) > params['inlierScore']:
                     predicted_features.append(feature_name)
                     correct_results += 1
             total_results += 1
@@ -235,29 +356,17 @@ def feature_detection(training_data, query_data, params, show_output=True):
         false_neg_diff = actual_feature_names_set.difference(predicted_feature_names_set)
         false_positives += list(false_pos_diff)
         false_negatives += list(false_neg_diff)
+        true_positives += len(correct_predictions)
 
-        accuracy = round(len(correct_predictions) / total_features * 100, 1)
-        if accuracy == 100 and len(false_positives) == 0:
-            print(GREEN, f"{path} -> Accuracy: {accuracy}%", NORMAL)
-        else:
-            print(RED, f"{path} -> Accuracy: {accuracy}%, True Positives: {correct_predictions}, False Positives: {false_pos_diff}, False Negatives {false_neg_diff}", NORMAL)
-
-        if show_output:
-            cv2.imshow('image', query_image)
-            cv2.waitKey(0)
+        accuracies.append(round(len(correct_predictions) / total_features * 100, 1))
 
     end_time = time.time()
+    avg_time_per_image = round((end_time - start_time) / len(query_data), 3)
 
-    print('\nSummary of results:')
-    print(f'False positives: {Counter(false_positives).most_common()}')
-    print(f'False negatives: {Counter(false_negatives).most_common()}')
-    print(f'Final accuracy: {round(correct_results/total_results * 100, 2)}%')
-    print(f'Avg. time per query image: {round((end_time - start_time) / len(query_data), 3)} seconds')
-
-    if show_output:
-        cv2.destroyAllWindows()
+    return np.mean(accuracies), len(false_positives), true_positives, avg_time_per_image 
 
 
+# TODO: remove?
 def feature_detection_hyperopt(bf, kp_desc_query, train_kp, train_desc, feature_name, params):
 
     for (query_kp, query_desc), _ in kp_desc_query:
@@ -285,7 +394,7 @@ def feature_detection_hyperopt(bf, kp_desc_query, train_kp, train_desc, feature_
 
     return
 
-
+# TODO: remove?
 def main_process_for_marker(test_images_and_features, training_images_and_paths, params, show_output=False):
     try:
         # Create the sift and matcher objects once at the start for efficiency
@@ -381,7 +490,7 @@ def main_process_for_marker(test_images_and_features, training_images_and_paths,
         print(RED, 'Unknown error occurred:', NORMAL, traceback.format_exc())
         exit()
 
-
+# TODO: remove?
 def feature_detection_marker(sift, bf, gray_query_image, colour_query_image, all_training_data, params, show_output=False):
     extra_time = 0
     start_time = time.time()
@@ -495,7 +604,7 @@ def read_training_dataset(dir):
         training_data.append((img, feature_name))
     return training_data
 
-
+# TODO: remove?
 def remove_noise_from_image(image, kernel=np.ones((3, 3), np.uint8)):
     _, thresh_img = cv2.threshold(image, 250, 255, cv2.THRESH_TOZERO_INV)
     eroded_img = cv2.erode(thresh_img, kernel, cv2.BORDER_REFLECT)
@@ -503,11 +612,11 @@ def remove_noise_from_image(image, kernel=np.ones((3, 3), np.uint8)):
     result = cv2.bitwise_or(eroded_img, mask)
     return result
 
-
+# TODO: remove?
 def feature_name_from_path(img_path):
     return img_path[img_path.find('-')+1:img_path.find('.png')]
 
-
+# TODO: remove?
 def oriented_bounding_box(points):
     rect = cv2.minAreaRect(points)
     box = cv2.boxPoints(rect)

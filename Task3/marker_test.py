@@ -15,7 +15,7 @@ if __name__ == '__main__':
             'contrastThreshold': 0.0039052330228148877,
             'edgeThreshold': 16.379139206562137,
             'nOctaveLayers': 6,
-            'nfeatures': 1700,
+            'nfeatures': 1700, # NOTE: faster with 1300 on given training data
             'sigma': 2.2201211013686857
         },
         'BF': {
