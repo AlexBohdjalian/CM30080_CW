@@ -46,13 +46,13 @@ draw_true_bbs = False
 print('Generating new test data...')
 for img, all_objects in generate_test_data(10, training_paths_and_images):
     print('All Data for image:', all_objects)
-    for object_deets in all_objects:
-        name, top_left, bottom_right, angle = object_deets
+    for object_details in all_objects:
+        name, top_left, bottom_right, angle = object_details
         if draw_true_bbs:
             img = draw_oriented_bbox(img, top_left, bottom_right, angle)
 
-    partial_object_deets = [obj[:3] for obj in all_objects]
-    print('Data available for prediction:', partial_object_deets)
+    partial_object_details = [obj[:3] for obj in all_objects]
+    print('Data available for prediction:', partial_object_details)
 
     cv2.imshow('img', img)
     cv2.waitKey(0)

@@ -73,7 +73,7 @@ def get_bounding_boxes(image, scale=10, min_area=500):
     image = cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_LINEAR)
     # Binarise and remove noise from the image
     image = cv2.medianBlur(image, 25)
-    image_res, image = cv2.threshold(image, 240, 255, cv2.THRESH_BINARY_INV)
+    _, image = cv2.threshold(image, 240, 255, cv2.THRESH_BINARY_INV)
     kernel = np.ones((11, 11), np.uint8)
     image = cv2.morphologyEx(image, cv2.MORPH_OPEN, kernel)
 
@@ -286,7 +286,6 @@ def feature_detection_for_graphing(training_data, query_data, params):
     for future in futures_train:
         train_kp, train_desc, feature = future.result()
         if train_desc is None:
-            print(f'No descriptors found for {feature}')
             continue
         all_training_data_kp_desc.append((feature, train_kp, train_desc))
 
@@ -301,16 +300,12 @@ def feature_detection_for_graphing(training_data, query_data, params):
         ) for path, query_image, actual_features in query_data]
 
     accuracies = []
-    total_results = 0
-    correct_results = 0
     true_positives = 0
     false_positives = []
-    false_negatives = []
     # main loop to match query images to training data
     for future in futures_query:
         segments_kp_desc, (path, actual_features) = future.result()
         if len(segments_kp_desc) == 0:
-            print(f'No descriptors found for {path}')
             continue
 
         predicted_features = []
@@ -341,24 +336,19 @@ def feature_detection_for_graphing(training_data, query_data, params):
                 # Check if the match has more than 'inlierScore' inliers
                 if sum(matches_mask) > params['inlierScore']:
                     predicted_features.append(feature_name)
-                    correct_results += 1
-            total_results += 1
 
         predicted_feature_names_set = set(predicted_features)
         actual_feature_names_set = set([f[0] for f in actual_features])
 
         # calculate accuracy
         correct_predictions = predicted_feature_names_set.intersection(actual_feature_names_set)
-        total_features = len(actual_feature_names_set)
 
         # calculate false positives and false negatives
         false_pos_diff = predicted_feature_names_set.difference(actual_feature_names_set)
-        false_neg_diff = actual_feature_names_set.difference(predicted_feature_names_set)
         false_positives += list(false_pos_diff)
-        false_negatives += list(false_neg_diff)
         true_positives += len(correct_predictions)
 
-        accuracies.append(round(len(correct_predictions) / total_features * 100, 1))
+        accuracies.append(round(len(correct_predictions) / len(actual_feature_names_set) * 100, 1))
 
     end_time = time.time()
     avg_time_per_image = round((end_time - start_time) / len(query_data), 3)
