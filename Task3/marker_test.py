@@ -2,9 +2,9 @@ import traceback
 
 from main import feature_detection, read_test_dataset, read_training_dataset
 
+
 RED = '\u001b[31m'
 NORMAL = '\u001b[0m'
-
 
 if __name__ == '__main__':
     params = {
@@ -15,7 +15,7 @@ if __name__ == '__main__':
             'contrastThreshold': 0.0039052330228148877,
             'edgeThreshold': 16.379139206562137,
             'nOctaveLayers': 6,
-            'nfeatures': 1700, # NOTE: faster with 1300 on given training data
+            'nfeatures': 1700,
             'sigma': 2.2201211013686857
         },
         'BF': {
@@ -45,6 +45,4 @@ if __name__ == '__main__':
         print(RED, 'Error while reading datasets:', NORMAL, traceback.format_exc())
         exit()
 
-    # set the show_output to True to see the query images with the detected features
-    # if set to true ignore 'Avg. time per query image' metric
     feature_detection(train_data, query_data, params, show_output=True)

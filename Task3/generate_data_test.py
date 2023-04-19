@@ -1,7 +1,8 @@
-from generate_data import generate_test_data
-import cv2
 import os
+
+import cv2
 import numpy as np
+from generate_data import generate_test_data
 
 
 def read_training_dataset(dir, imread_mode=cv2.IMREAD_GRAYSCALE):

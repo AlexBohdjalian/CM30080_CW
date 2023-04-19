@@ -3,7 +3,7 @@ import traceback
 
 import cv2
 import numpy as np
-from main import feature_detection_for_graphing, read_test_dataset, read_training_dataset
+from main import feature_detection_for_graphing, read_test_dataset, read_training_dataset, remove_noise_from_image
 from matplotlib import pyplot as plt
 
 
@@ -50,6 +50,36 @@ best_params = {
 
 sift = cv2.SIFT_create(**best_params['SIFT'])
 bf = cv2.BFMatcher(**best_params['BF'])
+
+
+# Get noise vs no noise image -----------------------------------------------------------
+print('Creating noise removal example...')
+gray_example_image = query_data[0][1]
+no_noise_example_image = remove_noise_from_image(gray_example_image)
+vis = np.concatenate(
+    (
+        cv2.copyMakeBorder(
+            gray_example_image,
+            top=4,
+            bottom=4,
+            left=4,
+            right=2,
+            borderType=cv2.BORDER_CONSTANT,
+            value=(0, 0, 0)
+        ),
+        cv2.copyMakeBorder(
+            no_noise_example_image,
+            top=4,
+            bottom=4,
+            left=4,
+            right=2,
+            borderType=cv2.BORDER_CONSTANT,
+            value=(0, 0, 0)
+        ),
+    ),
+    axis=1
+)
+cv2.imwrite(f'{dir}/noise_removal_example.png', vis)
 
 
 # Determine "Accuracy vs Parameter", "Mean Average Error vs Parameter & Average time per image vs Parameter"  -----------------------------------------------------------
@@ -115,10 +145,10 @@ def get_sensitivity(field_name, param_space, values):
 param_spaces_to_try = [
     ('ransacReprojThreshold', [{'RANSAC': { 'ransacReprojThreshold': x }} for x in np.arange(0, 30)], np.arange(0, 30)),
 
-    # ('contrastThreshold', [{'SIFT': { 'contrastThreshold': x }} for x in np.arange(0, 2, 0.1)], np.arange(0, 2, 0.1)),
-    # ('edgeThreshold', [{'SIFT': { 'edgeThreshold': x }} for x in np.arange(1, 30)], np.arange(1, 30)),
-    # ('nOctaveLayers', [{ 'SIFT': { 'nOctaveLayers': x }} for x in range(1, 10)], list(range(1, 10))),
-    # ('nfeatures', [{'SIFT': { 'nfeatures': x }} for x in range(0, 3000, 100)], list(range(0, 3000, 100))),
+    ('contrastThreshold', [{'SIFT': { 'contrastThreshold': x }} for x in np.arange(0, 2, 0.1)], np.arange(0, 2, 0.1)),
+    ('edgeThreshold', [{'SIFT': { 'edgeThreshold': x }} for x in np.arange(1, 30)], np.arange(1, 30)),
+    ('nOctaveLayers', [{ 'SIFT': { 'nOctaveLayers': x }} for x in range(1, 10)], list(range(1, 10))),
+    ('nfeatures', [{'SIFT': { 'nfeatures': x }} for x in range(0, 3000, 100)], list(range(0, 3000, 100))),
     ('sigma', [{'SIFT': { 'sigma': x }} for x in range(1, 11)], list(range(1, 11))),
 
     ('inlierScore', [{'inlierScore': x} for x in range(0, 10)], list(range(0, 10))),
@@ -131,19 +161,6 @@ for param_name, param_space, values in param_spaces_to_try:
     fig = get_sensitivity(param_name, param_space, values)
     plt.savefig(f'{dir}/{param_name}_plot.png')
     plt.close(fig)
-
-
-# # Get noise vs no noise image -----------------------------------------------------------
-# print('Creating noise removal example...')
-# gray_example_image = all_rotation_images_and_features[0][0]
-# no_noise_example_image = remove_noise_from_image(gray_example_image)
-
-# vis = np.concatenate((gray_example_image, no_noise_example_image), axis=1)
-# vis = cv2.line(vis, (round(vis.shape[1] / 2), 0), (round(vis.shape[1] / 2), vis.shape[0]), (0, 0, 0), 2)
-# vis = cv2.copyMakeBorder(vis, 0, 30, 0, 0, cv2.BORDER_CONSTANT, (0, 0, 0))
-# draw_text(vis, 'Before', True, pos=(round(vis.shape[0] * 0.5), vis.shape[0] - 15), font_scale=2, font_thickness=2 )
-# draw_text(vis, 'After', True, pos=(round(vis.shape[0] * 1.5), vis.shape[0] - 15), font_scale=2, font_thickness=2 )
-# cv2.imwrite(f'{dir}/noise_removal_example.png', vis)
 
 
 print('Done.')

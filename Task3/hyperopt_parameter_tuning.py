@@ -1,12 +1,11 @@
+import traceback
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 
-import traceback
-
 import cv2
 from hyperopt import STATUS_FAIL, STATUS_OK, Trials, fmin, hp, tpe
-from main import feature_detection_hyperopt, main_process_for_marker, read_test_dataset, read_training_dataset, \
-    segment_detect_and_compute, sift_detect_and_compute, segment_icons
+from main import feature_detection_hyperopt, segment_detect_and_compute, read_test_dataset, read_training_dataset, sift_detect_and_compute
+
 
 RED = '\u001b[31m'
 GREEN = '\u001b[32m'
@@ -97,12 +96,13 @@ try:
         'ratioThreshold': hp.uniform('ratioThreshold', 0.55, 0.75),
         'resizeQuery': hp.choice('resizeQuery', range(90, 100)),
         'inlierScore': hp.choice('inlierScore', range(3, 6)),
-        'SIFT': {'nOctaveLayers': hp.choice('nOctaveLayers', range(5, 8)),
-                 'contrastThreshold': hp.uniform('contrastThreshold', 0.003, 0.005),
-                 'edgeThreshold': hp.uniform('edgeThreshold', 15.5, 17.5),
-                 'nfeatures': hp.choice('nfeatures', range(1600, 1901, 100)),
-                 'sigma': hp.uniform('sigma', 2, 2.5),
-                 },
+        'SIFT': {
+            'nOctaveLayers': hp.choice('nOctaveLayers', range(5, 8)),
+            'contrastThreshold': hp.uniform('contrastThreshold', 0.003, 0.005),
+            'edgeThreshold': hp.uniform('edgeThreshold', 15.5, 17.5),
+            'nfeatures': hp.choice('nfeatures', range(1600, 1901, 100)),
+            'sigma': hp.uniform('sigma', 2, 2.5),
+        },
     }
 
     test_dataset = all_no_rotation_images_and_features + all_rotation_images_and_features
