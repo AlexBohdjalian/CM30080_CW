@@ -2,7 +2,10 @@
 Computer Vision Group CW
 
 ### Task1: Measuring the angle
-TODO: Describe to examiner how the code works and how to use it on their own data
+
+1. `main.py`. This file contains the core functionality to calculate the angle between two lines in the image. The 'determine_angles' function drives the process, however it is recommended to use 'marker_test.py' file to run it with the appropiate parameters.
+2. `generate_data.py`. This file contains the functionality to generate images of two intersecting lines with random starting points, thickness, and angles.
+3. `marker_test.py`. Run this file to evaluate the perfomance of 'main.py'. The parameters are hard coded in, one just needs to set the 'directory' variable to the directory containing the images you wish to test. 
 
 ### Task2: Intensity-based filter matching
 
