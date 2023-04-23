@@ -2,33 +2,37 @@ import shutil
 import cv2
 import os
 import numpy as np
-import math
-import random
-import os
 import time
 
 
 
-test_folder = 'Task2Dataset/TestWithoutRotations/images/'
-test_labels = 'Task2Dataset/TestWithoutRotations/annotations/'
-train_folder='Task2Dataset/Training/png/'
-trained_filters_location = 'trained_filters/'
+# test_folder = 'Task2Dataset/TestWithoutRotations/images/'
+# test_labels = 'Task2Dataset/TestWithoutRotations/annotations/'
+# train_folder='Task2Dataset/Training/png/'
+# trained_filters_location = 'trained_filters/'
+
+
+# NOTE: For marker, we have assumed that the additional data you have is in the same format as the data given.
+# Please replace the two directories below with your own and then execute this file.
+test_dir = 'Task2/Task2Dataset/TestWithoutRotations'
+train_dir = 'Task2/Task2Dataset/Training/png'
 
 
 
+trained_filters_location = 'Task2/trained_filters/'
 
 
 # get object names
-object_names = os.listdir(train_folder)
+object_names = os.listdir(train_dir)
 for i in range(len(object_names)):
     name = object_names[i].split('.')[0]
     object_names[i] = name.split('-')[1]
 
 # load train filenames
-train_files = os.listdir(train_folder)
+train_files = os.listdir(train_dir)
 
 # load test filenames
-test_files = os.listdir(test_folder)
+test_files = os.listdir(f'{test_dir}/images/')
 
 
 
@@ -38,7 +42,7 @@ def MSE(x1, x2):
 
 
 def gaussian_pyramid(image, min_side_length):
-     # --- CREATE GAUSSIAN TREE FROM TRAIN IMAGE
+    # --- CREATE GAUSSIAN TREE FROM TRAIN IMAGE
     pyramid = []
     # append original image +gaussian to filters
     pyramid.append(cv2.GaussianBlur(image, (5,5), 0))
@@ -115,8 +119,8 @@ def SSD(input_image_i, filter_i):
 
 
 def train():
-
-    shutil.rmtree(trained_filters_location)
+    if os.path.exists(trained_filters_location):
+        shutil.rmtree(trained_filters_location)
     os.mkdir(trained_filters_location)
 
     # --- for test image, check all target objects
@@ -126,7 +130,7 @@ def train():
         #    continue
         
         # --- LOAD FILES import train files
-        train_image = cv2.imread(train_folder+target_object)
+        train_image = cv2.imread(f'{train_dir}/{target_object}')
 
         # --- REMOVE BACKGROUND FROM TRAINING
         train_image[np.where(( train_image > [240,240,240] ).all(axis=2))] = [0,0,0]
@@ -176,18 +180,11 @@ def train():
         os.mkdir(object_folder)
         for i in range(len(filters)):
             filter=filters[i]
-            print(filter)
             filter_index = str(i)
             cv2.imwrite(object_folder+filter_index+'.png', filter)
 
-        
-
-
-
-
 
 # ------- PARAMETERS:
-
 TARGET_PYRAMID_MIN_RES =32
 TEST_PYRAMID_MIN_RES = 256
 
@@ -233,7 +230,7 @@ def test():
     
 
         # --- load test labels
-        test_label_file = test_labels + test_file.split('.')[0] + '.txt'
+        test_label_file = test_dir + '/annotations/' + test_file.split('.')[0] + '.txt'
         label_objects=[]
         label_positions=[]
         with open(test_label_file,'r') as file:
@@ -249,7 +246,7 @@ def test():
 
         # ----- import test image  
         # REMOVE BACKGROUND AND SCALE TEST IMAGE
-        test_image = cv2.imread(test_folder+test_file)
+        test_image = cv2.imread(test_dir + '/images/' + test_file)
         test_image_original = test_image.copy()
         test_image[np.where(( test_image > [240,240,240] ).all(axis=2))] = [0,0,0]
         kernel = np.ones((2, 2), np.uint8)
@@ -267,20 +264,17 @@ def test():
         #cv2.waitKey(100)
 
 
-
         # -- GET NEXT OBJECT TO CHECK FOR. Search test image for this object using gaussian pyramid progressively
         # load gaussian pyramid for selected object from files
         for folder in trained_filters_dirs:
             target_object = '-'.join(folder.split('-')[1:])
-            filters_files = sorted(os.listdir('trained_filters/'+folder))
-            
-
+            filters_files = sorted(os.listdir(trained_filters_location + folder))
 
             # get all filters in pyramid for target object
             target_object_filters=[]
             for filter_file in filters_files:
                 # load filter from file (255)
-                filter_ = cv2.imread('trained_filters/'+folder+'/'+filter_file)
+                filter_ = cv2.imread(trained_filters_location + folder + '/' + filter_file)
 
                 # scale filter (0-1, sum to one, remove mean)
                 filter_ = filter_.astype(np.float32)/255.
@@ -289,25 +283,18 @@ def test():
                 #    filter[:,:,c] = filter[:,:,c] - filter[:,:,c].mean()
                 target_object_filters.append(filter_)
 
+            # --- define SEARCH AREA (y1,y2,x1,x2)
+            current_testing_square = [
+                0,test_image.shape[0],
+                0,test_image.shape[1]
+            ]
 
-            # --- define SEARCH AREA
-            current_testing_square = [  0,test_image.shape[0],
-                                        0,test_image.shape[1] ] # y1,y2,x1,x2
-            
             # ------- START GOING UP THE GAUSSIAN TREE OF THE TEST IMAGE - testing section is modified as we go up
             gauss_p_layer_filter = -1
             for gauss_p_layer_testimage in reversed(range(len(test_image_pyramid))):
                 test_image = test_image_pyramid[gauss_p_layer_testimage]
                 test_image_crop = test_image.copy()
                 test_image_crop = test_image_crop[current_testing_square[0]:current_testing_square[1], current_testing_square[2]:current_testing_square[3]] # crop to SEARCH AREA
-
-
-                
-
-
-                
-
-                
 
                 # ------ OF ALL THE FILTERS FOR THIS TARGET IMAGE(from its gaussian pyramid), CHECK WHICH ONE IS IN THE CURRENT IMAGE (this is needed the first time where we dont know the scale, after we find it then we know, when we are checking teh enxt image up along the test image pyramid, that the filter we need is jsut teh one up a level on the target obejcts gaussian pyramid than teh one we find here:)
                 if gauss_p_layer_filter > -1:
@@ -320,20 +307,16 @@ def test():
                     best_intensity_score = convolved.min()
                     std_conv_top_pixels_cluster = np.where(convolved<=convolved.min()+range_*0.1)  # find  lowest 10% pixels for std
                     best_std_score = np.mean([std_conv_top_pixels_cluster[0].std(), std_conv_top_pixels_cluster[1].std()])
-                    
                 else:
                     # check all filters for object
                     best_intensity_score = float('inf')
                     best_std_score = float('inf')
                     best_filter_index = 0
                     for i in range(len(target_object_filters)): # go from largest to smallest - larger is more discriminative and more likely to know trigger false positive
-                        
-
-
                         # don check filters which are larger than the test area
                         if target_object_filters[i].shape[0]>=test_image_crop.shape[0] or target_object_filters[i].shape[1]>=test_image_crop.shape[1]:
                             continue
-                         
+
                         # --- CONVOLVE FILTER ACROSS TEST IMAGE
                         convolved = SSD(test_image_crop, target_object_filters[i].copy()) / 2000
                         #print(convolved.max(), convolved.shape)
@@ -348,7 +331,7 @@ def test():
                         std_conv_top_pixels_cluster = np.where(convolved<=convolved.min()+range_*0.1)  # find  lowest 10% pixels for std
                         std_coords = np.mean([std_conv_top_pixels_cluster[0].std(), std_conv_top_pixels_cluster[1].std()]) 
                         score_std = std_coords
-                        num_cluster_std = std_conv_top_pixels_cluster[0].shape[0]
+                        # num_cluster_std = std_conv_top_pixels_cluster[0].shape[0]
                         #print('std_cluster',num_cluster_std)
 
                         if score_intensity<best_intensity_score and (score_std<best_std_score):
@@ -361,11 +344,6 @@ def test():
 
                             ###cv2.imshow('',convolved/convolved.max())
                             ###cv2.waitKey(1)
-                    
-                    
-                
-
-
 
                 # ----- GET OBJECT PRESENCE PREDICTION
                 filter_size = target_object_filters[best_filter_index].shape[0]*target_object_filters[best_filter_index].shape[1] ** 2   # compare all intensities to max possible intensity, which is (max_difference=1-0)*(num_filter_elements=hxw)**2
@@ -392,15 +370,9 @@ def test():
                 except:
                     pass
 
-
-
-
-
-
-
                 # ------- IF TARGET OBJECT IN IMAGE, GET POSITION
                 if not is_object_in_image:
-                    print('object not in image, skipping rest of filters for this objects')
+                    print(f'{target_object}\t not in image, skipping rest of filters for this objects')
                     break # if no filter from this object is seen at this leve, it wont be seen at any level - skip this object
                 else:
                     # --- GET MOST LIKELY POSITION FOR FILTER -> THRESHOLD CONVOLVED IMAGE, CLUSTER -> PREDICT POSITION  @@@@@@@@@@@@@@ TODO: K-MEANS CLSTERING OF HIGHEST INTENSITY POINTS
@@ -422,13 +394,6 @@ def test():
                     current_testing_square[1] = min(test_image.shape[0],  int(mean_y + (best_filter.shape[0]/2)*1.1))
                     current_testing_square[2] = max(0,                    int(mean_x - (best_filter.shape[1]/2)*1.1))
                     current_testing_square[3] = min(test_image.shape[1],  int(mean_x + (best_filter.shape[1]/2)*1.1))
-
-
-                    
-
-                    
-                    
-
 
 
                     # ---- OUTPUT ESTIMATIONS, GET ERROR

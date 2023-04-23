@@ -1,14 +1,12 @@
 # CM30080_CW
 Computer Vision Group CW
 
-### Task1: Measuring the angle
-
-1. `main.py`. This file contains the core functionality to calculate the angle between two lines in the image. The 'determine_angles' function drives the process, however it is recommended to use 'marker_test.py' file to run it with the appropiate parameters.
+## Task1: Measuring the angle
+1. `main.py`. This file contains the core functionality to calculate the angle between two lines in the image. The `determine_angles()` function drives the process, however it is recommended to use `marker_test.py` file to run it with the best parameters.
 2. `generate_data.py`. This file contains the functionality to generate images of two intersecting lines with random starting points, thickness, and angles.
-3. `marker_test.py`. Run this file to evaluate the perfomance of 'main.py'. The parameters are hard coded in, one just needs to set the 'directory' variable to the directory containing the images you wish to test. 
+3. `marker_test.py`. Run this file to evaluate the performance of 'main.py'. The parameters are hard coded in, one just needs to set the `directory` variable to the directory containing the images you wish to test. 
 
-### Task2: Intensity-based filter matching
-
+## Task2: Intensity-based filter matching
 We implement Sum Squared Difference for intensity based filter matching, and improve efficiency using gaussian pyramids for the test images and train images, progressively going up the pyramid and cropping the search area to be around the corresponding most likely candidate location for the query object in the previous, lower resolution pyramid layer.
 
 Hyper-parameters were searched for manually.
@@ -27,7 +25,7 @@ The `train()` function takes in the location of training images (as a global var
 The `test()` function reads these files and the test images and annotations and runs our SSD-gaussian pyramid intensity based filter matching algorithm and checks the accuracy while saving the predicated images as with bounding boxes and object labels.
 
 
-### Task3: SIFT Feature Matching
+## Task3: SIFT Feature Matching
 For this task, we have implemented the SIFT algorithm for feature matching with the given datasets. There are four main files:
 
 1. `main.py`. This file contains the core functionality for feature matching using the SIFT algorithm. It includes functions for reading the datasets, image pre-processing, SIFT feature extraction, feature matching, transformation estimation, and result visualisation. To use it on your own data, we recommend you use the `marker_test.py` file, which has the best feature matching parameters we could generate and only requires you to indicate the directories for your data.
