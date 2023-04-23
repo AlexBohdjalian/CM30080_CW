@@ -16,7 +16,9 @@ At the top of the code are lines defining:
   - where test images are located
   - where test annotations are located
   - where training images are located
-  - where the training image gaussian pyramids should be located 
+  - where the training image gaussian pyramids should be located
+
+In order to use the file, please change the `test_dir` and `train_dir` variables where indicated at the top of the file to point to the directories of the data you have. Then, simply execute the file.
 
 It creates predicated images with bounding boxes and captions in the base directory.
 
