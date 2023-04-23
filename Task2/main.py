@@ -5,36 +5,31 @@ import numpy as np
 import time
 
 
-
-# test_folder = 'Task2Dataset/TestWithoutRotations/images/'
-# test_labels = 'Task2Dataset/TestWithoutRotations/annotations/'
-# train_folder='Task2Dataset/Training/png/'
-# trained_filters_location = 'trained_filters/'
-
-
 # NOTE: For marker, we have assumed that the additional data you have is in the same format as the data given.
 # Please replace the two directories below with your own and then execute this file.
 test_dir = 'Task2/Task2Dataset/TestWithoutRotations'
 train_dir = 'Task2/Task2Dataset/Training/png'
 
-
-
 trained_filters_location = 'Task2/trained_filters/'
 
+NORMAL = '\u001b[0m'
+RED = '\u001b[31m'
+GREEN = '\u001b[32m'
 
-# get object names
-object_names = os.listdir(train_dir)
-for i in range(len(object_names)):
-    name = object_names[i].split('.')[0]
-    object_names[i] = name.split('-')[1]
-
-# load train filenames
-train_files = os.listdir(train_dir)
-
-# load test filenames
-test_files = os.listdir(f'{test_dir}/images/')
+def read_training_dataset(dir):
+    training_data = []
+    for path in os.listdir(dir):
+        img = cv2.imread(f'{dir}/{path}')
+        feature_name = path[path.find('-')+1:path.find('.png')]
+        training_data.append((img, feature_name))
+    return training_data
 
 
+train_files = read_training_dataset(train_dir)
+test_files = sorted(
+    os.listdir(f'{test_dir}/images/'),
+    key=lambda x: int(x.split("_")[2].split(".")[0])
+)
 
 
 def MSE(x1, x2):
@@ -49,8 +44,6 @@ def gaussian_pyramid(image, min_side_length):
     loop=True
     i=0
     while loop:
-
-        
         # --- scale down filter size by half compared to previous filter
         new_res = np.asarray([pyramid[-1].shape[0], pyramid[-1].shape[1]]) // 2
         
@@ -88,13 +81,14 @@ def SSD(input_image_i, filter_i):
     kernel_position=[0,0] # tracks position of top left corner of kernal/filter
 
     while (kernel_position[0]+filter.shape[0])<=input_image.shape[0]: #repeatedly move kernel down
-        
         #move kernel to the right
         while (kernel_position[1]+filter.shape[1])<=input_image.shape[1]:
             # get chunk of image at current location of filter
-            current_image_chunk = input_image[kernel_position[0]:kernel_position[0]+filter.shape[0],
-                                              kernel_position[1]:kernel_position[1]+filter.shape[1]]
-            
+            current_image_chunk = input_image[
+                kernel_position[0]:kernel_position[0]+filter.shape[0],
+                kernel_position[1]:kernel_position[1]+filter.shape[1]
+            ]
+
             #NORMALIZE IMAGE WINDOW
             #window_mean_difference = current_image_chunk-current_image_chunk.mean()
             #current_image_chunk = window_mean_difference/np.sqrt(np.sum(window_mean_difference**2))
@@ -114,36 +108,20 @@ def SSD(input_image_i, filter_i):
 
 
 
-
-
-
-
 def train():
     if os.path.exists(trained_filters_location):
         shutil.rmtree(trained_filters_location)
     os.mkdir(trained_filters_location)
 
     # --- for test image, check all target objects
-    for target_object in train_files:
-        #if target_object != '002-bike.png':
-        #    print('skipping')
-        #    continue
-        
-        # --- LOAD FILES import train files
-        train_image = cv2.imread(f'{train_dir}/{target_object}')
-
+    for train_image, train_image_name in train_files:
         # --- REMOVE BACKGROUND FROM TRAINING
         train_image[np.where(( train_image > [240,240,240] ).all(axis=2))] = [0,0,0]
         kernel = np.ones((2, 2), np.uint8)
         train_image = cv2.erode(train_image , kernel, cv2.BORDER_REFLECT)
 
-
-
-
         filters = gaussian_pyramid(train_image, min_side_length=TARGET_PYRAMID_MIN_RES)
 
-        
-        
         # --- ROTATE FILTERS AND APPEND -- taken from code for task 3
         # TODO: might need to increase this for better performance
         # TODO: sift should be invariant of image rotation so why does this improve performance?
@@ -176,7 +154,7 @@ def train():
         for rot_filter in rotated_filters:
             filters.append(rot_filter)
 
-        object_folder = trained_filters_location+target_object.split('.')[0]+'/'
+        object_folder = trained_filters_location+train_image_name.split('.')[0]+'/'
         os.mkdir(object_folder)
         for i in range(len(filters)):
             filter=filters[i]
@@ -199,12 +177,7 @@ GAUSS_SIGMA = 0.25
 
 
 
-
-
-
 def test():
-
-
     true_positives=0
     false_positives=0
     true_negatives=0
@@ -215,27 +188,32 @@ def test():
     # if (presence wrong OR position wrong) this is wrong
 
 
-
     # retreive trained filters
-    trained_filters_dirs = os.listdir(trained_filters_location)
+    all_folders_and_filters = []
+    for folder in os.listdir(trained_filters_location):
+        # TODO: trained_filter_dirs = [(folder, filters), ...]
+        filters_files = sorted(os.listdir(trained_filters_location + folder))
+
+        # get all filters in pyramid for target object
+        target_object_filters=[]
+        for filter_file in filters_files:
+            # load filter from file (255)
+            filter_ = cv2.imread(trained_filters_location + folder + '/' + filter_file)
+
+            # scale filter (0-1, sum to one, remove mean)
+            filter_ = filter_.astype(np.float32)/255.
+            target_object_filters.append(filter_)
+        all_folders_and_filters.append((folder, target_object_filters))
 
     # load test image
     for test_file in test_files:
-
-        
-        #if test_file != 'test_image_20.png':
-        #    print('skipping')
-        #    continue
-
-    
-
         # --- load test labels
         test_label_file = test_dir + '/annotations/' + test_file.split('.')[0] + '.txt'
         label_objects=[]
         label_positions=[]
         with open(test_label_file,'r') as file:
             test_label_file = file.readlines()
-        print(test_label_file)
+
         for line in test_label_file:
             splitline = line.split(',')
             object = splitline[0]
@@ -243,6 +221,8 @@ def test():
 
             positions = [   int(splitline[1].replace('(','')), int(splitline[2].replace(')','')), int(splitline[3].replace('(','')), int(splitline[4].replace(')',''))   ]
             label_positions.append(positions)
+
+        print(f'Testing: {test_file} Actual features: {label_objects}')
 
         # ----- import test image  
         # REMOVE BACKGROUND AND SCALE TEST IMAGE
@@ -266,23 +246,7 @@ def test():
 
         # -- GET NEXT OBJECT TO CHECK FOR. Search test image for this object using gaussian pyramid progressively
         # load gaussian pyramid for selected object from files
-        for folder in trained_filters_dirs:
-            target_object = '-'.join(folder.split('-')[1:])
-            filters_files = sorted(os.listdir(trained_filters_location + folder))
-
-            # get all filters in pyramid for target object
-            target_object_filters=[]
-            for filter_file in filters_files:
-                # load filter from file (255)
-                filter_ = cv2.imread(trained_filters_location + folder + '/' + filter_file)
-
-                # scale filter (0-1, sum to one, remove mean)
-                filter_ = filter_.astype(np.float32)/255.
-                #for c in range(3):
-                #    filter[:,:,c] = filter[:,:,c] / filter[:,:,c].sum()
-                #    filter[:,:,c] = filter[:,:,c] - filter[:,:,c].mean()
-                target_object_filters.append(filter_)
-
+        for folder, target_object_filters in all_folders_and_filters:
             # --- define SEARCH AREA (y1,y2,x1,x2)
             current_testing_square = [
                 0,test_image.shape[0],
@@ -354,14 +318,14 @@ def test():
                     is_object_in_image=True
 
                 # if model says target object is not in image and it is, label asnwer as WRONG - it skips checking the rest of the gauss pyramid in the test iamge at this point so we can assess it immediately without waiting for top pyramid level answer
-                if (not is_object_in_image and (target_object in label_objects)):
+                if (not is_object_in_image and (folder in label_objects)):
                     false_negatives+=1
                     incorrect+=1
                     ###cv2.imshow('',convolved/convolved.max())
                     ###cv2.waitKey(1)
                     break
                 # if model says target object is not in image and it is not, label asnwer as RIGHT - it skips checking the rest of the gauss pyramid in the test iamge at this point so we can assess it immediately without waiting for top pyramid level answer
-                elif (not is_object_in_image and not (target_object in label_objects)):
+                elif (not is_object_in_image and not (folder in label_objects)):
                     true_negatives+=1
                     correct+=1
 
@@ -372,7 +336,7 @@ def test():
 
                 # ------- IF TARGET OBJECT IN IMAGE, GET POSITION
                 if not is_object_in_image:
-                    print(f'{target_object}\t not in image, skipping rest of filters for this objects')
+                    # print(f'{target_object}\t not in image, skipping rest of filters for this objects')
                     break # if no filter from this object is seen at this leve, it wont be seen at any level - skip this object
                 else:
                     # --- GET MOST LIKELY POSITION FOR FILTER -> THRESHOLD CONVOLVED IMAGE, CLUSTER -> PREDICT POSITION  @@@@@@@@@@@@@@ TODO: K-MEANS CLSTERING OF HIGHEST INTENSITY POINTS
@@ -385,7 +349,7 @@ def test():
                     mean_x += current_testing_square[2]
                     mean_y += current_testing_square[0]
                     mean_x += best_filter.shape[1]//2
-                    mean_y += best_filter.shape[0]//2 #copmensate for padding during SSD
+                    mean_y += best_filter.shape[0]//2 #compensate for padding during SSD
                     mean_x=round(mean_x)
                     mean_y=round(mean_y)
 
@@ -404,7 +368,7 @@ def test():
                     if gauss_p_layer_testimage == 0:
 
                         # --- FROM ESTIMATES CENTRE POSITION, GET BOUDNING BOX, TEXT & DISPLAY --- taken from code in task 3
-                        text=target_object
+                        text=folder
                         font=cv2.FONT_HERSHEY_PLAIN
                         font_scale=1
                         font_thickness=1
@@ -419,9 +383,9 @@ def test():
                         out_img = cv2.putText(out_img, text, (x1, y1 + text_h+5 + font_scale - 1), font, font_scale, text_color, font_thickness)
 
                         # check for true positive, get estimated position
-                        if target_object in label_objects:
+                        if folder in label_objects:
                             true_positives+=1
-                            idx = label_objects.index(target_object)
+                            idx = label_objects.index(folder)
 
                             position_MSE = np.mean([MSE(label_positions[idx][0], x1), 
                                                     MSE(label_positions[idx][1], y1), 
@@ -441,6 +405,13 @@ def test():
                     current_testing_square[2] = int(current_testing_square[2]*2)
                     current_testing_square[3] = int(current_testing_square[3]*2)
 
+            if folder in label_objects:
+                if is_object_in_image:
+                    print(f'{GREEN}Feature detected: {folder}{NORMAL}')
+                else:
+                    print(f'{RED}Feature not detected: {folder}{NORMAL}')
+            elif is_object_in_image:
+                print(f'{RED}Feature detected: {folder}{NORMAL}')
 
         # show final image after we have checked for all objects in this test image
         #cv2.imshow('',out_img)
@@ -449,18 +420,10 @@ def test():
     print('ACC----------------------------',accuracy, 'N=',correct+incorrect, false_negatives, false_positives, true_positives, true_negatives)
 
 
-    
-    
-    
-    
 start = time.time()
 train()
 end1 = time.time()
-
-
 test()
 end2 = time.time()
-
-
 
 print('time to train', end1-start, 'time to test', end2-start)
