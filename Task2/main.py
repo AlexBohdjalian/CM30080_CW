@@ -90,28 +90,20 @@ def SSD(input_image_i, filter_i):
     output_width = (input_image.shape[1] -  filter.shape[1])+1
     output_image = np.zeros([output_height,output_width])
 
-    # NORMALISE filter
-    #window_mean_difference = filter-filter.mean()
-    #filter = window_mean_difference/np.sqrt(np.sum(window_mean_difference**2))
+    kernel_position=[0,0] # tracks position of top left corner of kernel/filter
 
-    kernel_position=[0,0] # tracks position of top left corner of kernal/filter
-
-    while (kernel_position[0]+filter.shape[0])<=input_image.shape[0]: #repeatedly move kernel down
-        #move kernel to the right
+    while (kernel_position[0]+filter.shape[0])<=input_image.shape[0]: # move kernel down
+        #move kernel right
         while (kernel_position[1]+filter.shape[1])<=input_image.shape[1]:
-            # get chunk of image at current location of filter
+            # get window of test image at current location of filter
             current_image_chunk = input_image[
                 kernel_position[0]:kernel_position[0]+filter.shape[0],
                 kernel_position[1]:kernel_position[1]+filter.shape[1]
             ]
 
-            #NORMALIZE IMAGE WINDOW
-            #window_mean_difference = current_image_chunk-current_image_chunk.mean()
-            #current_image_chunk = window_mean_difference/np.sqrt(np.sum(window_mean_difference**2))
-
-            # calculate SSD between chunk and filter
-            chunk_SSD = np.sum((current_image_chunk-filter)**2) # from [255,128,0],[1,239,254] we get []
-            #save SSD result to output image at appropriate indices
+            # calculate SSD between window and filter
+            chunk_SSD = np.sum((current_image_chunk-filter)**2)
+            #save SSD result to output image at appropriate index
             output_image[kernel_position[0], kernel_position[1]] = chunk_SSD
 
             # move kernel rightward 1
@@ -178,13 +170,11 @@ def train():
 
 
 # ------- PARAMETERS:
-TARGET_PYRAMID_MIN_RES =32
+TARGET_PYRAMID_MIN_RES = 32
 TEST_PYRAMID_MIN_RES = 256
 
-TARGET_SCORE_INTENSITY = 2.8e-06
-TARGET_SCORE_STD = 1.18 # 1.01
-# target score intensity imagesize_scaler
-# target score  std imagesize_scaler
+TARGET_SCORE_INTENSITY = 0.0056
+TARGET_SCORE_STD = 1.18
 
 GAUSS_SIZE = 5
 GAUSS_SIGMA = 0.25
@@ -250,7 +240,7 @@ def test():
                 0,test_image.shape[1]
             ]
 
-            # ------- START GOING UP THE GAUSSIAN TREE OF THE TEST IMAGE - testing section is modified as we go up
+            # ------- START GOING UP THE GAUSSIAN TREE OF THE TEST IMAGE - where the test iamge is cropped to is modified as we go up
             gauss_p_layer_filter = -1
             for gauss_p_layer_testimage in reversed(range(len(test_image_pyramid))):
                 test_image = test_image_pyramid[gauss_p_layer_testimage]
@@ -262,7 +252,7 @@ def test():
                     gauss_p_layer_filter -= 1 # go up the gaussian pyramid from the last iteration
                     best_filter_index = max(0, gauss_p_layer_filter)
                     best_filter = target_object_filters[best_filter_index].copy()
-                    best_convolved = SSD(test_image_crop, best_filter) / 2000
+                    best_convolved = SSD(test_image_crop, best_filter)
 
                     range_ = convolved.max()-convolved.min()
                     best_intensity_score = convolved.min()
@@ -279,22 +269,14 @@ def test():
                             continue
 
                         # --- CONVOLVE FILTER ACROSS TEST IMAGE
-                        convolved = SSD(test_image_crop, target_object_filters[i].copy()) / 2000
-                        #print(convolved.max(), convolved.shape)
+                        convolved = SSD(test_image_crop, target_object_filters[i].copy())
 
-                        #cv2.imshow('convolved',convolved)
-                        #cv2.waitKey(1)
-                        range_ = convolved.max()-convolved.min()
-                        #conv_top_pixels_cluster = np.where(convolved<=convolved.min()+range_*0.3) # find  lowest 30% pixels for intensity
-                        #score_intensity = convolved[conv_top_pixels_cluster].mean()
                         score_intensity = convolved.min()
 
-                        std_conv_top_pixels_cluster = np.where(convolved<=convolved.min()+range_*0.1)  # find  lowest 10% pixels for std
-
+                        range_ = convolved.max()-convolved.min()
+                        std_conv_top_pixels_cluster = np.where(convolved<=convolved.min()+range_*0.1)  # find  lowest 10% pixels for std feature
                         std_coords = np.mean([std_conv_top_pixels_cluster[0].std(), std_conv_top_pixels_cluster[1].std()]) 
                         score_std = std_coords
-                        # num_cluster_std = std_conv_top_pixels_cluster[0].shape[0]
-                        #print('std_cluster',num_cluster_std)
 
                         if score_intensity<best_intensity_score and (score_std<best_std_score):
                             best_filter_index = i
@@ -304,9 +286,6 @@ def test():
                             best_convolved=convolved.copy()
                             best_filter = target_object_filters[i].copy()
 
-                            ###cv2.imshow('',convolved/convolved.max())
-                            ###cv2.waitKey(1)
-
                 # ----- GET OBJECT PRESENCE PREDICTION
                 filter_size = target_object_filters[best_filter_index].shape[0]*target_object_filters[best_filter_index].shape[1] ** 2   # compare all intensities to max possible intensity, which is (max_difference=1-0)*(num_filter_elements=hxw)**2
                 is_object_in_image=False
@@ -315,14 +294,12 @@ def test():
                 if best_intensity_score<TARGET_SCORE_INTENSITY and best_std_score<TARGET_SCORE_STD:
                     is_object_in_image=True
 
-                # if model says target object is not in image and it is, label asnwer as WRONG - it skips checking the rest of the gauss pyramid in the test iamge at this point so we can assess it immediately without waiting for top pyramid level answer
+                # if model says target object is not in image and it is, label the answer as WRONG - it skips checking the rest of the gauss pyramid in the test iamge at this point so we can assess it immediately without waiting for top pyramid level answer
                 if (not is_object_in_image and (folder in label_objects)):
                     false_negatives+=1
                     incorrect+=1
-                    ###cv2.imshow('',convolved/convolved.max())
-                    ###cv2.waitKey(1)
                     break
-                # if model says target object is not in image and it is not, label asnwer as RIGHT - it skips checking the rest of the gauss pyramid in the test iamge at this point so we can assess it immediately without waiting for top pyramid level answer
+                # if model says target object is not in image and it is not, label the answer as RIGHT - it skips checking the rest of the gauss pyramid in the test iamge at this point so we can assess it immediately without waiting for top pyramid level answer
                 elif (not is_object_in_image and not (folder in label_objects)):
                     true_negatives+=1
                     correct+=1
@@ -337,9 +314,8 @@ def test():
                     # print(f'{target_object}\t not in image, skipping rest of filters for this objects')
                     break # if no filter from this object is seen at this leve, it wont be seen at any level - skip this object
                 else:
-                    # --- GET MOST LIKELY POSITION FOR FILTER -> THRESHOLD CONVOLVED IMAGE, CLUSTER -> PREDICT POSITION  @@@@@@@@@@@@@@ TODO: K-MEANS CLSTERING OF HIGHEST INTENSITY POINTS
-
-                    conv_top_pixels_cluster = np.where(best_convolved==best_convolved.min())  # find  lowest STD area and select as position of object
+                    # --- GET MOST LIKELY POSITION FOR FILTER
+                    conv_top_pixels_cluster = np.where(best_convolved==best_convolved.min())  # find pixel with lowest SDD score
                     mean_x = np.median(conv_top_pixels_cluster[1])
                     mean_y = np.median(conv_top_pixels_cluster[0])
 
@@ -392,10 +368,8 @@ def test():
                             incorrect+=1
                             false_positives+=1
 
-                    current_testing_square[0] = int(current_testing_square[0]*2) # we are going to go up a level on  the gaussian pyramid of the test image, so we need to compensate for this by halving the window size and coords, too
-                    current_testing_square[1] = int(current_testing_square[1]*2)
-                    current_testing_square[2] = int(current_testing_square[2]*2)
-                    current_testing_square[3] = int(current_testing_square[3]*2)
+                    for i in range(4):
+                        current_testing_square[i] = int(current_testing_square[i]*2) # we are going to go up a level on  the gaussian pyramid of the test image, so we need to compensate for this by halving the window size and coords, too
 
             if folder in label_objects:
                 if is_object_in_image:
@@ -410,12 +384,12 @@ def test():
         #cv2.waitKey(1000)
         #cv2.imwrite('predicted_'+test_file, out_img)
     print()
-    print('Accuracy       : ' + accuracy)
-    print('Total Images   : ' + (correct+incorrect))
-    print('False Negatives: ' + false_negatives)
-    print('False Positives: ' + false_positives)
-    print('True Positives : ' + true_positives)
-    print('True Negatives : ' + true_negatives)
+    print('Accuracy       :', accuracy)
+    print('Total Images   :', correct+incorrect)
+    print('False Negatives:', false_negatives)
+    print('False Positives:', false_positives)
+    print('True Positives :', true_positives)
+    print('True Negatives :', true_negatives)
 
 
 start = time.time()
@@ -424,5 +398,6 @@ end1 = time.time()
 test()
 end2 = time.time()
 
-print('Time to train: ' + end1-start)
-print('Time to test : ' + end2-start)
+print('Time to train: ' + str(end1-start))
+print('Time to test : ' + str(end2-end1))
+print('Total : ' + str(end2-start))
