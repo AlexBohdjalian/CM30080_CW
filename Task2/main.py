@@ -409,7 +409,13 @@ def test():
         #cv2.imshow('',out_img)
         #cv2.waitKey(1000)
         #cv2.imwrite('predicted_'+test_file, out_img)
-    print('ACC----------------------------',accuracy, 'N=',correct+incorrect, false_negatives, false_positives, true_positives, true_negatives)
+    print()
+    print('Accuracy       : ' + accuracy)
+    print('Total Images   : ' + (correct+incorrect))
+    print('False Negatives: ' + false_negatives)
+    print('False Positives: ' + false_positives)
+    print('True Positives : ' + true_positives)
+    print('True Negatives : ' + true_negatives)
 
 
 start = time.time()
@@ -418,4 +424,5 @@ end1 = time.time()
 test()
 end2 = time.time()
 
-print('time to train', end1-start, 'time to test', end2-start)
+print('Time to train: ' + end1-start)
+print('Time to test : ' + end2-start)
