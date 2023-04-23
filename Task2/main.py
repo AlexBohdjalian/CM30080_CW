@@ -24,12 +24,41 @@ def read_training_dataset(dir):
         training_data.append((img, feature_name))
     return training_data
 
+def read_test_dataset(dir, file_ext):
+    print(f'Reading test dataset: {dir}')
+
+    image_files = os.listdir(dir + 'images/')
+    image_files = sorted(image_files, key=lambda x: int(x.split("_")[2].split(".")[0]))
+
+    all_data = []
+    for image_file in image_files:
+        csv_file = dir + 'annotations/' + image_file[:-4] + file_ext
+        with open(csv_file, 'r') as fr:
+            features = fr.read().splitlines()
+        all_features = []
+        for feature in features:
+            end_of_class_name_index = feature.find(", ")
+            end_of_first_tuple_index = feature.find("), (") + 1
+            feature_class = feature[:end_of_class_name_index]
+            feature_coord1 = eval(feature[end_of_class_name_index + 2:end_of_first_tuple_index])
+            feature_coord2 = eval(feature[end_of_first_tuple_index + 2:])
+
+            all_features.append([feature_class, feature_coord1, feature_coord2])
+        path = dir + 'images/' + image_file
+
+        img = cv2.imread(path)
+
+        all_data.append((
+            path,
+            img,
+            all_features
+        ))
+
+    return all_data
+
 
 train_files = read_training_dataset(train_dir)
-test_files = sorted(
-    os.listdir(f'{test_dir}/images/'),
-    key=lambda x: int(x.split("_")[2].split(".")[0])
-)
+test_data = read_test_dataset(test_dir + '/', '.txt')
 
 
 def MSE(x1, x2):
@@ -37,32 +66,19 @@ def MSE(x1, x2):
 
 
 def gaussian_pyramid(image, min_side_length):
-    # --- CREATE GAUSSIAN TREE FROM TRAIN IMAGE
-    pyramid = []
-    # append original image +gaussian to filters
-    pyramid.append(cv2.GaussianBlur(image, (5,5), 0))
-    loop=True
-    i=0
-    while loop:
-        # --- scale down filter size by half compared to previous filter
-        new_res = np.asarray([pyramid[-1].shape[0], pyramid[-1].shape[1]]) // 2
-        
-        new_filter = cv2.resize(pyramid[-1], new_res, interpolation=cv2.INTER_AREA) # downscale
+    pyramid = [image]
 
-        # --- apply gaussian blur to newest filter size
-        new_filter = cv2.GaussianBlur(new_filter, (GAUSS_SIZE,GAUSS_SIZE), GAUSS_SIGMA)
+    while True:
+        # Reduce image size using pyrDown
+        image = cv2.pyrDown(image)
 
-
-        #cv2.imshow('filter',filters[i+1])
-        #cv2.waitKey(100)
-        pyramid.append(new_filter)
-
-        if (new_res[0]==min_side_length) or (new_res[1]==min_side_length): # dont make filters smaller than key amount (once ssmall enough, the iamge cant be idenitifed at that small a scale and the filters are easily wrongly triggered)
+        # Check if image size is greater than or equal to min_side_length
+        if min(image.shape[:2]) >= min_side_length:
+            pyramid.append(image)
+        else:
             break
 
-        i+=1
     return pyramid
-
 
 
 def SSD(input_image_i, filter_i):
@@ -105,7 +121,6 @@ def SSD(input_image_i, filter_i):
         kernel_position[1] = 0
         kernel_position[0] += 1
     return output_image
-
 
 
 def train():
@@ -173,8 +188,6 @@ TARGET_SCORE_STD = 1.18 # 1.01
 
 GAUSS_SIZE = 5
 GAUSS_SIGMA = 0.25
-# meaure complexity space, time
-
 
 
 def test():
@@ -189,44 +202,28 @@ def test():
 
 
     # retreive trained filters
-    all_folders_and_filters = []
-    for folder in os.listdir(trained_filters_location):
-        # TODO: trained_filter_dirs = [(folder, filters), ...]
-        filters_files = sorted(os.listdir(trained_filters_location + folder))
+    all_folders_and_filters = [
+        (
+            folder,
+            [
+                cv2.imread(
+                    os.path.join(trained_filters_location, folder, filter_file)
+                ).astype(np.float32) / 255.0
+                for filter_file in sorted(os.listdir(os.path.join(trained_filters_location, folder)))
+            ]
+        ) for folder in os.listdir(trained_filters_location)]
 
-        # get all filters in pyramid for target object
-        target_object_filters=[]
-        for filter_file in filters_files:
-            # load filter from file (255)
-            filter_ = cv2.imread(trained_filters_location + folder + '/' + filter_file)
-
-            # scale filter (0-1, sum to one, remove mean)
-            filter_ = filter_.astype(np.float32)/255.
-            target_object_filters.append(filter_)
-        all_folders_and_filters.append((folder, target_object_filters))
 
     # load test image
-    for test_file in test_files:
+    for test_image_path, test_image, test_image_features in test_data:
         # --- load test labels
-        test_label_file = test_dir + '/annotations/' + test_file.split('.')[0] + '.txt'
-        label_objects=[]
-        label_positions=[]
-        with open(test_label_file,'r') as file:
-            test_label_file = file.readlines()
+        label_objects=[f[0] for f in test_image_features]
+        label_positions=[f[1] for f in test_image_features]
 
-        for line in test_label_file:
-            splitline = line.split(',')
-            object = splitline[0]
-            label_objects.append(object)
-
-            positions = [   int(splitline[1].replace('(','')), int(splitline[2].replace(')','')), int(splitline[3].replace('(','')), int(splitline[4].replace(')',''))   ]
-            label_positions.append(positions)
-
-        print(f'Testing: {test_file} Actual features: {label_objects}')
+        print(f'Testing: {test_image_path} Actual features: {label_objects}')
 
         # ----- import test image  
         # REMOVE BACKGROUND AND SCALE TEST IMAGE
-        test_image = cv2.imread(test_dir + '/images/' + test_file)
         test_image_original = test_image.copy()
         test_image[np.where(( test_image > [240,240,240] ).all(axis=2))] = [0,0,0]
         kernel = np.ones((2, 2), np.uint8)
@@ -293,6 +290,7 @@ def test():
                         score_intensity = convolved.min()
 
                         std_conv_top_pixels_cluster = np.where(convolved<=convolved.min()+range_*0.1)  # find  lowest 10% pixels for std
+
                         std_coords = np.mean([std_conv_top_pixels_cluster[0].std(), std_conv_top_pixels_cluster[1].std()]) 
                         score_std = std_coords
                         # num_cluster_std = std_conv_top_pixels_cluster[0].shape[0]
@@ -359,11 +357,6 @@ def test():
                     current_testing_square[2] = max(0,                    int(mean_x - (best_filter.shape[1]/2)*1.1))
                     current_testing_square[3] = min(test_image.shape[1],  int(mean_x + (best_filter.shape[1]/2)*1.1))
 
-
-                    # ---- OUTPUT ESTIMATIONS, GET ERROR
-                    # if object is present, get position error
-
-
                     # --- FINAL DECISION IS ONLY MADE FOR HIGHEST RES TEST IMAGE - DONT ASSESS ACCURACY BEFORE FINAL DECISION IS MADE
                     if gauss_p_layer_testimage == 0:
 
@@ -387,10 +380,9 @@ def test():
                             true_positives+=1
                             idx = label_objects.index(folder)
 
-                            position_MSE = np.mean([MSE(label_positions[idx][0], x1), 
-                                                    MSE(label_positions[idx][1], y1), 
-                                                    MSE(label_positions[idx][2], x2), 
-                                                    MSE(label_positions[idx][3], y2)])
+                            label_pos = np.array(label_positions[idx]).reshape(-1, 2)
+                            pred_pos = np.array([mean_x, mean_y]).reshape(-1, 2)
+                            position_MSE = np.mean((label_pos - pred_pos)**2)
 
                             if position_MSE >1:
                                 incorrect+=1
