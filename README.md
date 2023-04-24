@@ -1,5 +1,5 @@
 # CM30080_CW
-Computer Vision Group CW
+Computer Vision Group B CW
 
 ## Task1: Measuring the angle
 1. `main.py`. This file contains the core functionality to calculate the angle between two lines in the image. The `determine_angles()` function drives the process, however it is recommended to use `marker_test.py` file to run it with the best parameters.
