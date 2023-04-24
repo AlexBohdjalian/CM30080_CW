@@ -170,8 +170,8 @@ def train():
 
 
 # ------- PARAMETERS:
-TARGET_PYRAMID_MIN_RES = 32
-TEST_PYRAMID_MIN_RES = 256
+TARGET_PYRAMID_MIN_RES = 16
+TEST_PYRAMID_MIN_RES = 128
 
 TARGET_SCORE_INTENSITY = 0.0056
 TARGET_SCORE_STD = 1.18
@@ -384,12 +384,12 @@ def test():
         #cv2.waitKey(1000)
         #cv2.imwrite('predicted_'+test_file, out_img)
     print()
-    print('Accuracy       :', accuracy)
-    print('Total Images   :', correct+incorrect)
-    print('False Negatives:', false_negatives)
-    print('False Positives:', false_positives)
-    print('True Positives :', true_positives)
-    print('True Negatives :', true_negatives)
+    print('Accuracy       :', str(accuracy))
+    print('Total Images   :', str(correct+incorrect) )
+    print('False Negatives:', str(false_negatives))
+    print('False Positives:', str(false_positives))
+    print('True Positives :', str(true_positives))
+    print('True Negatives :', str(true_negatives))
 
 
 start = time.time()
