@@ -181,6 +181,11 @@ GAUSS_SIGMA = 0.25
 
 
 def test():
+    predicted_dir = 'Task2/predicted_/'
+    if os.path.exists(predicted_dir):
+        shutil.rmtree(predicted_dir)
+    os.mkdir(predicted_dir)
+
     true_positives=0
     false_positives=0
     true_negatives=0
@@ -190,8 +195,7 @@ def test():
     # if (presence right and position wrong) this is wrong
     # if (presence wrong OR position wrong) this is wrong
 
-
-    # retreive trained filters
+    # retrieve trained filters
     all_folders_and_filters = [
         (
             folder,
@@ -202,7 +206,6 @@ def test():
                 for filter_file in sorted(os.listdir(os.path.join(trained_filters_location, folder)))
             ]
         ) for folder in os.listdir(trained_filters_location)]
-
 
     # load test image
     for test_image_path, test_image, test_image_features in test_data:
@@ -379,10 +382,8 @@ def test():
             elif is_object_in_image:
                 print(f'{RED}Feature detected: {folder}{NORMAL}')
 
-        # show final image after we have checked for all objects in this test image
-        #cv2.imshow('',out_img)
-        #cv2.waitKey(1000)
-        #cv2.imwrite('predicted_'+test_file, out_img)
+        cv2.imwrite(predicted_dir + os.path.basename(test_image_path), out_img)
+
     print()
     print('Accuracy       :', str(accuracy))
     print('Total Images   :', str(correct+incorrect) )

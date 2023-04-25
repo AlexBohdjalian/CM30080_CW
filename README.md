@@ -20,6 +20,8 @@ At the top of the code are lines defining:
 
 In order to use the file, please change the `test_dir` and `train_dir` variables where indicated at the top of the file to point to the directories of the data you have. Then, simply execute the file.
 
+The final images with bounding boxes are saved into the directory `Task2/predicted_/`
+
 It creates predicated images with bounding boxes and captions in the base directory.
 
 The `train()` function takes in the location of training images (as a global variable, it is not passed) and creates a gaussian pyramid for each image and saves them to appropriate sub-directories.
