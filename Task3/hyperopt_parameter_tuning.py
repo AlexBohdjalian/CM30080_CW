@@ -26,7 +26,6 @@ except Exception as e:
 
 
 def objective_false_res(param):
-
     bf = cv2.BFMatcher(crossCheck=False, normType=2)
 
     with ThreadPoolExecutor(max_workers=8) as executor1:

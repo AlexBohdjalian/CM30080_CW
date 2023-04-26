@@ -355,7 +355,9 @@ def feature_detection_for_graphing(training_data, query_data, params):
     end_time = time.time()
     avg_time_per_image = round((end_time - start_time) / len(query_data), 3)
 
-    return np.mean(accuracies), len(false_positives), true_positives, avg_time_per_image 
+    if len(accuracies) == 0:
+        accuracies = [0]
+    return np.mean(accuracies), len(false_positives), true_positives, avg_time_per_image
 
 
 def feature_detection_hyperopt(bf, kp_desc_query, train_kp, train_desc, feature_name, params):

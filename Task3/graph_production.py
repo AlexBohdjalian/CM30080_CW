@@ -152,7 +152,7 @@ param_spaces_to_try = [
     ('sigma', [{'SIFT': { 'sigma': x }} for x in range(1, 11)], list(range(1, 11))),
 
     ('inlierScore', [{'inlierScore': x} for x in range(0, 10)], list(range(0, 10))),
-    ('ratioThreshold', [{'ratioThreshold': x} for x in np.arange(0.1, 2, 0.1)], np.arange(0.1, 2, 0.1)),
+    ('ratioThreshold', [{'ratioThreshold': x} for x in np.arange(0.1, 1.5, 0.1)], np.arange(0.1, 1.5, 0.1)),
     ('resizeQuery', [{'resizeQuery': x} for x in range(50, 101)], list(range(50, 101))),
 ]
 
