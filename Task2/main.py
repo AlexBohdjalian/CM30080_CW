@@ -5,12 +5,27 @@ import numpy as np
 import time
 
 
-# NOTE: For marker, we have assumed that the additional data you have is in the same format as the data given.
+# NOTE: For the marker, we have assumed that the additional data you have is in the same format as the data given.
 # Please replace the two directories below with your own and then execute this file.
 test_dir = 'Task2/Task2Dataset/TestWithoutRotations'
 train_dir = 'Task2/Task2Dataset/Training/png'
 
-trained_filters_location = 'Task2/trained_filters/'
+
+
+
+# NOTE: predicted images are saves to the predicted_dir folder below. 
+# Gaussian tree filters are saved to trained_filters_location.
+trained_filters_location = 'Task2_trained_filters/'
+predicted_dir = 'Task2_predicted_/'
+
+
+
+
+
+try:
+    os.mkdir(trained_filters_location)
+except:
+    pass
 
 NORMAL = '\u001b[0m'
 RED = '\u001b[31m'
@@ -129,9 +144,8 @@ def train():
 
         filters = gaussian_pyramid(train_image, min_side_length=TARGET_PYRAMID_MIN_RES)
 
-        # --- ROTATE FILTERS AND APPEND -- taken from code for task 3
-        # TODO: might need to increase this for better performance
-        # TODO: sift should be invariant of image rotation so why does this improve performance?
+
+        # --- ROTATE FILTERS AND APPEND -- taken from code for task 3   NOTE: set 'directions' > 0 to enable rotated filters. DOES NOT work during test time!
         directions = 0
         angles = [360. / directions * i for i in range(directions)] # up, tr, right, br, down, bl, left, tl
         rotated_filters = []
@@ -175,13 +189,13 @@ TEST_PYRAMID_MIN_RES = 128
 
 TARGET_SCORE_INTENSITY = 0.0056
 TARGET_SCORE_STD = 1.18
+NMS_threshold = 30
 
 GAUSS_SIZE = 5
 GAUSS_SIGMA = 0.25
 
 
 def test():
-    predicted_dir = 'Task2/predicted_/'
     if os.path.exists(predicted_dir):
         shutil.rmtree(predicted_dir)
     os.mkdir(predicted_dir)
@@ -234,9 +248,14 @@ def test():
         #cv2.waitKey(100)
 
 
+        # for NMS, we predict positions for all objects, store the names and positions, then do NMS
+        predicted_objects = {}     # each elements = 'objectname':(centre_position, SSD score)
+
+
+
         # -- GET NEXT OBJECT TO CHECK FOR. Search test image for this object using gaussian pyramid progressively
         # load gaussian pyramid for selected object from files
-        for folder, target_object_filters in all_folders_and_filters:
+        for object_name, target_object_filters in all_folders_and_filters:
             # --- define SEARCH AREA (y1,y2,x1,x2)
             current_testing_square = [
                 0,test_image.shape[0],
@@ -297,25 +316,14 @@ def test():
                 if best_intensity_score<TARGET_SCORE_INTENSITY and best_std_score<TARGET_SCORE_STD:
                     is_object_in_image=True
 
-                # if model says target object is not in image and it is, label the answer as WRONG - it skips checking the rest of the gauss pyramid in the test iamge at this point so we can assess it immediately without waiting for top pyramid level answer
-                if (not is_object_in_image and (folder in label_objects)):
-                    false_negatives+=1
-                    incorrect+=1
-                    break
-                # if model says target object is not in image and it is not, label the answer as RIGHT - it skips checking the rest of the gauss pyramid in the test iamge at this point so we can assess it immediately without waiting for top pyramid level answer
-                elif (not is_object_in_image and not (folder in label_objects)):
-                    true_negatives+=1
-                    correct+=1
-
-                try:
-                    accuracy = correct/(correct+incorrect)
-                except:
-                    pass
 
                 # ------- IF TARGET OBJECT IN IMAGE, GET POSITION
                 if not is_object_in_image:
                     # print(f'{target_object}\t not in image, skipping rest of filters for this objects')
+                    # since in a previous layer it might have been detected but now not, we need to remove the position that we saved for this object
+                    predicted_objects.pop(object_name, 0)
                     break # if no filter from this object is seen at this leve, it wont be seen at any level - skip this object
+                
                 else:
                     # --- GET MOST LIKELY POSITION FOR FILTER
                     conv_top_pixels_cluster = np.where(best_convolved==best_convolved.min())  # find pixel with lowest SDD score
@@ -330,62 +338,104 @@ def test():
                     mean_x=round(mean_x)
                     mean_y=round(mean_y)
 
+                    size = best_filter.shape[0]
+
+                    predicted_objects[object_name] = (np.asarray([mean_y, mean_x]), best_intensity_score, size)
+
                     # UPDATE IMAGE CROP - new area is 10% larger than selected square
                     current_testing_square[0] = max(0,                    int(mean_y - (best_filter.shape[0]/2)*1.1))
                     current_testing_square[1] = min(test_image.shape[0],  int(mean_y + (best_filter.shape[0]/2)*1.1))
                     current_testing_square[2] = max(0,                    int(mean_x - (best_filter.shape[1]/2)*1.1))
                     current_testing_square[3] = min(test_image.shape[1],  int(mean_x + (best_filter.shape[1]/2)*1.1))
 
-                    # --- FINAL DECISION IS ONLY MADE FOR HIGHEST RES TEST IMAGE - DONT ASSESS ACCURACY BEFORE FINAL DECISION IS MADE
-                    if gauss_p_layer_testimage == 0:
-
-                        # --- FROM ESTIMATES CENTRE POSITION, GET BOUDNING BOX, TEXT & DISPLAY --- taken from code in task 3
-                        text=folder
-                        font=cv2.FONT_HERSHEY_PLAIN
-                        font_scale=1
-                        font_thickness=1
-                        text_color=(0, 0, 0)
-                        text_color_bg=(0, 255, 0)
-                        text_w, text_h = best_filter.shape[1], best_filter.shape[0]
-                        x1 = mean_x - text_w//2
-                        y1 = mean_y - text_h//2
-                        x2 = mean_x + text_w//2
-                        y2 = mean_y + text_h//2
-                        out_img = cv2.rectangle(out_img, (x1, y1), (x2, y2), text_color_bg, 2)
-                        out_img = cv2.putText(out_img, text, (x1, y1 + text_h+5 + font_scale - 1), font, font_scale, text_color, font_thickness)
-
-                        # check for true positive, get estimated position
-                        if folder in label_objects:
-                            true_positives+=1
-                            idx = label_objects.index(folder)
-
-                            label_pos = np.array(label_positions[idx]).reshape(-1, 2)
-                            pred_pos = np.array([mean_x, mean_y]).reshape(-1, 2)
-                            position_MSE = np.mean((label_pos - pred_pos)**2)
-
-                            if position_MSE >1:
-                                incorrect+=1
-                            else:                                
-                                correct+=1
-                        else:
-                            incorrect+=1
-                            false_positives+=1
 
                     for i in range(4):
                         current_testing_square[i] = int(current_testing_square[i]*2) # we are going to go up a level on  the gaussian pyramid of the test image, so we need to compensate for this by halving the window size and coords, too
 
-            if folder in label_objects:
-                if is_object_in_image:
-                    print(f'{GREEN}Feature detected: {folder}{NORMAL}')
-                else:
-                    print(f'{RED}Feature not detected: {folder}{NORMAL}')
-            elif is_object_in_image:
-                print(f'{RED}Feature detected: {folder}{NORMAL}')
+
+
+
+
+        # ------- NON-MAXIMA SUPPRESSION ON PREDICTED OBJECT POSITIONS
+        # remmebr objects_predictions hold object names, their estimated coords, and SSD score.
+
+        # save all predicted objects to filtered objects. they will be remove as necessary
+        final_output_objects = predicted_objects.copy()        
+        
+        # for each object in filtered objects, check its neighbours and remove ones which are 1) too close AND 2) have a worse SSD score
+        for object_name, (coords, SSD_score, size) in predicted_objects.items():
+
+            # check all potential neighbours of the selected object
+            for neighbour_name, (neigbour_coords, neighbour_SSD_score, size) in predicted_objects.items():
+
+                if not neighbour_name==object_name: 
+                    # get distance to potential neighbour
+                    distance = (sum((coords - neigbour_coords)**2))**0.5
+                    
+                    # If the neighbour is within the threshold distance to the selected object, remove it from the final output.
+                    if distance < NMS_threshold and SSD_score < neighbour_SSD_score:
+                        #print('[NMS removed]', neighbour_name)
+                        final_output_objects.pop(neighbour_name,0)
+
+        
+
+
+        for object_name, ([mean_y, mean_x], SSD_score, size) in final_output_objects.items():
+            # --- FROM ESTIMATES CENTRE POSITION, GET BOUDNING BOX, TEXT & DISPLAY --- taken from code in task 3
+            text=object_name
+            font=cv2.FONT_HERSHEY_PLAIN
+            font_scale=1
+            font_thickness=1
+            text_color=(0, 0, 0)
+            text_color_bg=(0, 255, 0)
+            text_w, text_h = size, size
+            x1 = mean_x - text_w//2
+            y1 = mean_y - text_h//2
+            x2 = mean_x + text_w//2
+            y2 = mean_y + text_h//2
+            out_img = cv2.rectangle(out_img, (x1, y1), (x2, y2), text_color_bg, 2)
+            out_img = cv2.putText(out_img, text, (x1, y1 + text_h+5 + font_scale - 1), font, font_scale, text_color, font_thickness)
+
+
 
         cv2.imwrite(predicted_dir + os.path.basename(test_image_path), out_img)
 
+        # check if the predicted objects are actually in the image or not
+        for object_name, ([mean_y, mean_x], score, size) in final_output_objects.items():
+
+            # check for true positive, get estimated position
+            if object_name in label_objects:
+                print(f'{GREEN}Feature detected: {object_name}{NORMAL}')
+                true_positives+=1
+                idx = label_objects.index(object_name)
+
+                label_pos = np.array(label_positions[idx]).reshape(-1, 2)
+                pred_pos = np.array([mean_x, mean_y]).reshape(-1, 2)
+                position_MSE = np.mean((label_pos - pred_pos)**2)
+                if position_MSE >1:
+                    incorrect+=1
+                else:                                
+                    correct+=1
+            else:
+                print(f'{RED}Feature detected: {object_name}{NORMAL}')
+                incorrect+=1
+                false_positives+=1
+
+        # check if any objects in the test image were missed
+        for object_name in label_objects:
+            if not object_name in final_output_objects.keys():
+                print(f'{RED}Feature not detected: {object_name}{NORMAL}')
+                incorrect +=1
+                false_negatives+=1
+                
+        # check true negative the model got right (all selectable objects that both the corrects labels and the predicted objects exclude)
+        all_objects = [folder for folder in os.listdir(trained_filters_location)]
+        true_negatives += len(list(set(all_objects) - set(final_output_objects.keys()).union(set(label_objects))))
+        correct += len(list(set(all_objects) - set(final_output_objects.keys()).union(set(label_objects))))
+
+
     print()
-    print('Accuracy       :', str(accuracy))
+    print('Accuracy       :', str((true_positives+true_negatives)/(correct+incorrect)))
     print('Total Images   :', str(correct+incorrect) )
     print('False Negatives:', str(false_negatives))
     print('False Positives:', str(false_positives))
