@@ -142,6 +142,8 @@ def feature_detection(training_data, query_data, params, show_output=True):
     start_time = time.time()
     extra_time = 0
 
+    training_data_names_set = set(f[1] for f in training_data)
+
     bf = cv2.BFMatcher(**params['BF'])
 
     # compute keypoints and descriptors for training data
@@ -225,7 +227,7 @@ def feature_detection(training_data, query_data, params, show_output=True):
         actual_feature_names_set = set([f[0] for f in actual_features])
 
         # calculate accuracy
-        correct_predictions = predicted_feature_names_set.intersection(actual_feature_names_set)
+        true_positives = predicted_feature_names_set.intersection(actual_feature_names_set)
 
         # calculate false positives and false negatives
         extra_time -= time.time()
@@ -236,11 +238,13 @@ def feature_detection(training_data, query_data, params, show_output=True):
         false_pos_diff = predicted_feature_names_set.difference(actual_feature_names_set)
         false_positives += list(false_pos_diff)
 
-        accuracy = round(len(correct_predictions) / len(actual_feature_names_set) * 100, 1)
+        true_negatives = training_data_names_set - actual_feature_names_set - predicted_feature_names_set
+
+        accuracy = round(100 * (len(true_positives) + len(true_negatives)) / len(training_data_names_set), 1)
         if accuracy == 100 and len(false_positives) == 0:
             print(GREEN, f"{path} -> Accuracy: {accuracy}%", NORMAL)
         else:
-            print(RED, f"{path} -> Accuracy: {accuracy}%, True Positives: {correct_predictions}, False Positives: {false_pos_diff}, False Negatives {false_neg_diff}", NORMAL)
+            print(RED, f"{path} -> Accuracy: {accuracy}%, True Positives: {true_positives}, True Negatives: {true_negatives}, False Positives: {false_pos_diff}, False Negatives {false_neg_diff}", NORMAL)
 
         if show_output:
             extra_time -= time.time()
@@ -263,6 +267,7 @@ def feature_detection(training_data, query_data, params, show_output=True):
 
 def feature_detection_for_graphing(training_data, query_data, params):
     start_time = time.time()
+    training_data_names_set = set(f[1] for f in training_data)
 
     bf = cv2.BFMatcher(**params['BF'])
 
@@ -343,7 +348,9 @@ def feature_detection_for_graphing(training_data, query_data, params):
         false_positives += list(false_pos_diff)
         true_positives += len(correct_predictions)
 
-        accuracies.append(round(len(correct_predictions) / len(actual_feature_names_set) * 100, 1))
+        true_negatives = training_data_names_set - actual_feature_names_set - predicted_feature_names_set
+
+        accuracies.append(round(100 * (len(true_positives) + len(true_negatives)) / len(training_data_names_set), 1))
 
     end_time = time.time()
     avg_time_per_image = round((end_time - start_time) / len(query_data), 3)
