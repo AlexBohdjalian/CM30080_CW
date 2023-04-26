@@ -357,20 +357,20 @@ def test():
 
 
         # ------- NON-MAXIMA SUPPRESSION ON PREDICTED OBJECT POSITIONS
-        # remmebr objects_predictions hold object names, their estimated coords, and SSD score.
+        # objects_predictions hold object names, their estimated coords, and SSD score.
 
-        # save all predicted objects to filtered objects. they will be remove as necessary
+        # save all predicted objects to final_output_objects. they will be remove as necessary
         final_output_objects = predicted_objects.copy()        
         
-        # for each object in filtered objects, check its neighbours and remove ones which are 1) too close AND 2) have a worse SSD score
+        # for each object in final_output_objects, check its neighbours and remove ones which are 1) too close AND 2) have a worse SSD score
         for object_name, (coords, SSD_score, size) in predicted_objects.items():
 
             # check all potential neighbours of the selected object
-            for neighbour_name, (neigbour_coords, neighbour_SSD_score, size) in predicted_objects.items():
+            for neighbour_name, (neighbour_coords, neighbour_SSD_score, size) in predicted_objects.items():
 
                 if not neighbour_name==object_name: 
                     # get distance to potential neighbour
-                    distance = (sum((coords - neigbour_coords)**2))**0.5
+                    distance = (sum((coords - neighbour_coords)**2))**0.5
                     
                     # If the neighbour is within the threshold distance to the selected object, remove it from the final output.
                     if distance < NMS_threshold and SSD_score < neighbour_SSD_score:
