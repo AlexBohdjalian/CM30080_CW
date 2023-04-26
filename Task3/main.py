@@ -350,7 +350,7 @@ def feature_detection_for_graphing(training_data, query_data, params):
 
         true_negatives = training_data_names_set - actual_feature_names_set - predicted_feature_names_set
 
-        accuracies.append(round(100 * (len(true_positives) + len(true_negatives)) / len(training_data_names_set), 1))
+        accuracies.append(round(100 * (len(correct_predictions) + len(true_negatives)) / len(training_data_names_set), 1))
 
     end_time = time.time()
     avg_time_per_image = round((end_time - start_time) / len(query_data), 3)
